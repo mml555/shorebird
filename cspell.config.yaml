@@ -5,6 +5,8 @@ version: "0.2"
 # misspelling in upstream's test name, and the point of quoting it is that it
 # stays wrong. File-scoped so it is invisible here and nowhere else.
 # cspell:words cand elig ents envx fals getsize logf stdev trav
+# The selfhost/engine/route_b/mint vocabulary listed in the override below:
+# cspell:words androideabi armv cacheinfo COPYFILE copyfileobj extractfile getmembers gname gnargs ionice isprev makedirs nounit rsyncs tmpl tostring xattrs NALL
 # The selfhost/ci-host vocabulary listed in the override below:
 # cspell:words nftables slirp oifname iifname dport daddr skuid ROOTLESSKIT rootlesskit subuid subgid subuids setpriv jobpath tokfile reuid regid productionresultssa pipelinesghubeus eastus npmjs localnet journalctl esac dstdomain dstdom cgroupv cgroupfs cgroupdriver xdev userns usermod uploadpurging smhd shopt setuid rootdirectory remoteurl oneshot nullglob nsenter newuidmap newgidmap gpasswd getent drunner disableupdate crontabs coredump cmdline clippy alpinelinux NOFILE LOGNAME EUID pgrep
 # cspell:ignore delibrate mispelt Shoul shutil stdlib gskinner hlcl hlclpqwxzq hlclxeca hlclqjttgm hlclx hldxg wfyg VVFRF WRVJTSU UNRE Volemes Ünïcödé Iterab
@@ -110,6 +112,29 @@ ignorePaths:
     "selfhost/evidence/r12-linux-ci/promotion-*/*_access.txt",
   ]
 overrides:
+  # The mint pipeline (selfhost/engine/route_b/mint): tar and git plumbing flags, python stdlib names,
+  # and local variable names, used across its scripts, so scoped here rather than inline.
+  - filename: "selfhost/engine/route_b/mint/**"
+    words:
+      - androideabi
+      - armv
+      - cacheinfo
+      - COPYFILE
+      - copyfileobj
+      - extractfile
+      - getmembers
+      - gname
+      - gnargs
+      - ionice
+      - isprev
+      - makedirs
+      - nounit
+      - rsyncs
+      - shutil
+      - tmpl
+      - tostring
+      - xattrs
+      - NALL
   # The CI runner host (selfhost/ci-host): nftables, squid, systemd and rootless-Docker
   # vocabulary used across 13 of its files, so scoped here rather than inline.
   - filename: "selfhost/ci-host/**"

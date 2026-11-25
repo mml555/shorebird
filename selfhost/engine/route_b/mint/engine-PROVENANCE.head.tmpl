@@ -1,0 +1,22 @@
+experimental_engine_hash: @E@
+falls_back_to:            @FB@ (Shorebird's @FB_BRANCH@ engine)
+flutter_engine_revision:  @FLUTTER_ENGINE_REVISION@ (upstream Flutter engine revision, read from artifacts_manifest.yaml)
+source:                   @ENGINE_REPO@ @E@ (@ENGINE_BRANCH@; DEPS updater @UPDATER_REV@), clean tree
+dart:                     @DART@ (built from source, --no-prebuilt-dart-sdk)
+
+linux_half:               built on ci-build (Linux x86_64) by build_engine_linux.sh per shorebird/ci/shards/linux.json:
+                          Android arm64/arm/x64 debug, profile and release; linux-x64 host tools; flutter_patched_sdk{,_product};
+                          Maven modules (jar, pom, maven-metadata.xml) for all three modes
+darwin_half:              built on @MAC_OS@ (@XCODE@) by build_engine_mac.sh
+                          per shorebird/ci/shards/macos.json and compose.json: shards android ios ios-debug ios-profile
+                          mac-arm64 mac-x64 mac-arm64-debug mac-arm64-profile mac-x64-debug mac-x64-profile.
+                          clang_tidy and verify_exported steps skipped. 32-bit Android adds build_analyze_snapshot=true.
+                          x64 macOS host tools are cross-built from arm64.
+ios_release:              Route B (shorebird_route_b = true, dart_dynamic_modules = true). iOS debug and profile engines: Route B off.
+route_b_compiler:         route-b-compiler-darwin-arm64.zip from out/host_release_arm64_ddm (dart_dynamic_modules=true) at this
+                          engine, built with @CELL_REPO@ @HELPERS_SHA@ selfhost/engine/route_b; flutter_platform_strong.dill
+                          from this engine's flutter_patched_sdk_product.zip. Its own PROVENANCE.txt lists its files.
+patch_tools:              patch-{darwin-arm64,darwin-x64,linux-x64}.zip carried unchanged from an earlier cell (@PATCH_SOURCE@);
+                          the updater's patch tool does not depend on the engine.
+not_produced:             windows-x64 artifacts (served from the fallback), dSYM zips (dSYMs ship inside the frameworks)
+everything_else:          served from @FB@ by the mirror
