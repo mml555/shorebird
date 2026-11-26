@@ -172,6 +172,46 @@ void main() {
       expect(calls, isEmpty);
     });
 
+    test('--retarget-last renames the last target in a dry run', () async {
+      final two = File('${dir.path}/two.sbrbptch')
+        ..writeAsBytesSync(
+          writeRouteBContainer(
+            releaseBuildId: 'abc123',
+            targets: [
+              RouteBPatchTarget(
+                library: 'package:app/main.dart',
+                selector: 'real',
+                bytecode: Uint8List.fromList([1, 2, 3]),
+              ),
+              RouteBPatchTarget(
+                library: 'package:app/main.dart',
+                selector: 'second',
+                bytecode: Uint8List.fromList([4, 5, 6]),
+              ),
+            ],
+          ),
+        );
+      final code = await run([
+        ...base(['--channel=beta', '--dry-run', '--retarget-last']),
+        '--container=${two.path}',
+      ]);
+      expect(code, 0, reason: err.toString());
+      final targets = RouteBContainer.parse(
+        File('${two.path}.partial').readAsBytesSync(),
+      ).targets;
+      expect(targets.map((t) => t.selector), ['real', defaultBogusSelector]);
+      expect(calls, isEmpty);
+    });
+
+    test('--retarget-last refuses a one-target container', () async {
+      expect(
+        await run(base(['--channel=beta', '--dry-run', '--retarget-last'])),
+        64,
+      );
+      expect(err.toString(), contains('at least two targets'));
+      expect(File('${container.path}.partial').existsSync(), isFalse);
+    });
+
     test('refuses a channel that does not exist and creates none', () async {
       expect(
         await run(base(['--channel=nope', '--patch-tool=${shim.path}'])),

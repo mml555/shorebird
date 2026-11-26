@@ -116,6 +116,34 @@ void main() {
         expect(parsed.targets.last.bytecode, second);
       });
 
+      test('refuses a last payload identical to an earlier one', () {
+        final same = writeRouteBContainer(
+          releaseBuildId: 'abc123',
+          targets: [
+            RouteBPatchTarget(
+              library: 'package:app/main.dart',
+              selector: 'real',
+              bytecode: payload,
+            ),
+            RouteBPatchTarget(
+              library: 'package:app/main.dart',
+              selector: 'second',
+              bytecode: Uint8List.fromList(payload),
+            ),
+          ],
+        );
+        expect(
+          () => forgePartialContainer(same, retargetLast: true),
+          throwsA(
+            isA<ForgeException>().having(
+              (e) => e.message,
+              'message',
+              contains('same payload'),
+            ),
+          ),
+        );
+      });
+
       test('refuses a one-target container', () {
         expect(
           () => forgePartialContainer(original, retargetLast: true),
