@@ -109,8 +109,8 @@ Set `MINT_ENV=<your env file>` in your shell first. Every script prints a plan w
     It checks `sha256(cell_manifest.v2)[:40] == A` and installs the descriptor at
     `<overlay>/download.shorebird.dev/shorebird/cell-manifests/<A>.v2`.
 13. **OWNER: promotion workspace.** Use `selfhost/engine/route_b/promo_clone.sh`. Its header says how:
-    `promo_clone.sh --from promo-<old> --cell <A> --selector <SEL> --repo-sha <CLI> [--dry-run]`.
-    Run it with `--dry-run` first. See `selfhost/TOOLCHAIN_PROMOTION.md`.
+    `promo_clone.sh --from promo-<old> --cell <A> --selector <SEL> --repo-sha <CLI>` plans; add `--run` to write.
+    Run it without `--run` first. See `selfhost/TOOLCHAIN_PROMOTION.md`.
 14. **OWNER: chain and arm B** on ci-build, as `selfhost/TOOLCHAIN_PROMOTION.md` describes.
 15. **OWNER: repack the release.** `bash repack.sh` (plan), `bash repack.sh --build` (local, with the hydrate check),
     `bash repack.sh --run`. It uploads six files to the `cell-<A8>` release with `--clobber` (this replaces `MANIFEST.sha256` and the tar parts) and rewrites the notes.

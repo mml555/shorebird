@@ -28,17 +28,18 @@
 # a failure removes it.
 #
 #   promo_clone.sh --from promo-<old> --cell <40 hex> --selector <40 hex> \
-#                  --repo-sha <40 hex> [--host ci-build] [--dry-run]
+#                  --repo-sha <40 hex> [--host ci-build] [--run]
 #
-# --dry-run prints what it would pin and changes nothing on ci-build.
+# Without --run it checks the preconditions, prints what it would pin and changes nothing on ci-build,
+# like the mint scripts. --run writes the workspace. --dry-run is still accepted, is the default, and wins over --run.
 set -euo pipefail
 HERE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 REPO="$(git -C "$HERE" rev-parse --show-toplevel)"
 ROOT=/srv/ci-cache/shorebird-engine
 HOST=ci-build
-FROM="" CELL="" SEL="" RS="" DRY=0
+FROM="" CELL="" SEL="" RS="" RUN=0 PLAN=0
 
-usage() { sed -n '3,25p' "$0" | sed 's/^# \{0,1\}//'; exit "${1:-2}"; }
+usage() { sed -n '3,/^set -euo pipefail/p' "$0" | sed '$d' | sed 's/^# \{0,1\}//'; exit "${1:-2}"; }
 while (($#)); do
   case "$1" in
     --from) FROM=${2:-}; shift 2 ;;
@@ -46,11 +47,13 @@ while (($#)); do
     --selector) SEL=${2:-}; shift 2 ;;
     --repo-sha) RS=${2:-}; shift 2 ;;
     --host) HOST=${2:-}; shift 2 ;;
-    --dry-run) DRY=1; shift ;;
+    --dry-run) PLAN=1; shift ;;
+    --run) RUN=1; shift ;;
     -h | --help) usage 0 ;;
     *) echo "unknown argument: $1" >&2; usage ;;
   esac
 done
+DRY=1; ((RUN && !PLAN)) && DRY=0
 hex40() { [[ "$2" =~ ^[0-9a-f]{40}$ ]] || { echo "$1 must be a full 40-hex sha, got '$2'" >&2; exit 2; }; }
 hex40 --cell "$CELL"; hex40 --selector "$SEL"; hex40 --repo-sha "$RS"
 [[ "$FROM" =~ ^promo-[0-9a-z]+$ ]] || { echo "--from must name a workspace like promo-f2458551" >&2; exit 2; }
@@ -127,7 +130,7 @@ REMOTE
 }
 
 remote check
-if ((DRY)); then echo "DRY RUN: nothing written"; exit 0; fi
+if ((DRY)); then echo "PLAN ONLY: nothing written. Add --run to write the workspace."; exit 0; fi
 T=$(mktemp -d); trap 'rm -rf "${T:?}"' EXIT
 git -C "$REPO" archive "$RS" selfhost/ci | tar -x -C "$T"
 # Mac tar adds AppleDouble (._*) entries that GNU tar on ci-build extracts as
