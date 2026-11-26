@@ -56,8 +56,8 @@ All in `bin/`. Run them in this order.
    patch 5: three edits that must publish, two that must be
    refused before upload, then a rollback of the newest patch.
 5. `all.sh` runs `steps.sh` then `steps2.sh`.
-6. `forced_partial.sh` shows the all-or-nothing rollback: a two-target patch, then
-   forged copies of it that must each be refused and rolled back. See
+6. `forced_partial.sh` shows the all-or-nothing rollback: a patch built from two
+   edits, then forged copies of it that must each be refused and rolled back. See
    [Forced partial patch](#forced-partial-patch-all-or-nothing-rollback).
 
 `lib.sh` holds the shared helpers: `launch` (under the debugger), `boot` (detached, so a
@@ -137,11 +137,15 @@ different functions, such as `p06_async_return+p03_setstate_closure`, whose last
 payload differs from the first (the tool checks). In the forged patch, N in the
 expected line below is the number of targets before the last one.
 
-`bin/forced_partial.sh` runs the whole sequence: the two-target patch, then each
+`bin/forced_partial.sh` runs the whole sequence: the patch built from
+`p06_async_return+p03_setstate_closure` (3 targets in the shapes app), then each
 mode in `FORGE_MODES` (default all three; use `FORGE_MODES=retarget-last` on
-engines up to 64abe347). Each forged patch is downloaded, booted twice and then
-skipped, and the script lists any crash reports. Logs go to
-`$R/logs/forced_partial`.
+engines up to 64abe347). With that patch, the rollback reads 2/2 for
+`--retarget-last` and `--reuse-first-payload` and 3/3 for the append mode. Each
+forged patch is downloaded, booted, and booted again once the updater has marked
+it bad. The script prints `PASS` or `FAIL` per mode, fails on any crash report the
+phone wrote during the run, and exits 1 on a failure. Patches go to `stable`, the
+channel the app polls. Logs go to `$R/logs/forced_partial`.
 
 The forged container is always written to `<container>.partial` (or `--out`).
 Drop `--dry-run` to publish; it needs `SHOREBIRD_TOKEN` and

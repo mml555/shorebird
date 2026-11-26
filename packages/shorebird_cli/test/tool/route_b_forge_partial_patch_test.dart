@@ -204,6 +204,37 @@ void main() {
         expect(parsed.targets.last.bytecode, payload);
       });
 
+      test('keeps every target before the last, in order', () {
+        final third = Uint8List.fromList([8, 9]);
+        final three = writeRouteBContainer(
+          releaseBuildId: 'abc123',
+          targets: [
+            RouteBPatchTarget(
+              library: 'package:app/main.dart',
+              selector: 'real',
+              bytecode: payload,
+            ),
+            RouteBPatchTarget(
+              library: 'package:app/other.dart',
+              selector: 'second',
+              bytecode: second,
+            ),
+            RouteBPatchTarget(
+              library: 'package:app/third.dart',
+              selector: 'third',
+              bytecode: third,
+            ),
+          ],
+        );
+        final targets = RouteBContainer.parse(
+          forgePartialContainer(three, reuseFirstPayload: true),
+        ).targets;
+        expect(targets.map((t) => t.selector), ['real', 'second', 'third']);
+        expect(targets[1].bytecode, second);
+        expect(targets[2].library, 'package:app/third.dart');
+        expect(targets[2].bytecode, payload);
+      });
+
       test('refuses a container whose last payload is already the first', () {
         final same = writeRouteBContainer(
           releaseBuildId: 'abc123',

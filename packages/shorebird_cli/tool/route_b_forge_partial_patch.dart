@@ -372,6 +372,12 @@ Future<void> _run(
     if (!f.existsSync()) throw ForgeException('${f.path} does not exist.');
   }
 
+  if ((r['reuse-first-payload'] as bool) && r.wasParsed('bogus-selector')) {
+    throw ForgeException(
+      '--bogus-selector has no effect with --reuse-first-payload, which keeps '
+      "the last target's real selector; drop one.",
+    );
+  }
   final original = File(containerPath).readAsBytesSync();
   final forged = forgePartialContainer(
     original,

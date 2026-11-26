@@ -248,6 +248,38 @@ void main() {
       },
     );
 
+    test('refuses --retarget-last with --reuse-first-payload', () async {
+      expect(
+        await run(
+          base([
+            '--channel=beta',
+            '--dry-run',
+            '--retarget-last',
+            '--reuse-first-payload',
+          ]),
+        ),
+        64,
+      );
+      expect(err.toString(), contains('pick one'));
+      expect(File('${container.path}.partial').existsSync(), isFalse);
+    });
+
+    test('refuses --bogus-selector with --reuse-first-payload', () async {
+      expect(
+        await run(
+          base([
+            '--channel=beta',
+            '--dry-run',
+            '--reuse-first-payload',
+            '--bogus-selector=nope',
+          ]),
+        ),
+        64,
+      );
+      expect(err.toString(), contains('has no effect'));
+      expect(File('${container.path}.partial').existsSync(), isFalse);
+    });
+
     test('refuses a channel that does not exist and creates none', () async {
       expect(
         await run(base(['--channel=nope', '--patch-tool=${shim.path}'])),
