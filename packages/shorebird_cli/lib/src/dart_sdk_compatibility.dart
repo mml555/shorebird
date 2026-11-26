@@ -67,6 +67,9 @@ class DartSdkCompatibility {
     // f2458551 re-minted with the Route B analyzer v24 (#277). Same engine
     // and Dart SDK: the analyzer ships beside the SDK, not inside it.
     '9995f957': '0cd04a77',
+    // Flutter 3.50 engine c9a5421c and the cell 04e5ef97 minted over it (Dart 28f6f83f). selfhost/cdn/experimental_hashes.map.
+    'c9a5421c': '28f6f83f',
+    '04e5ef97': '28f6f83f',
   };
 
   /// Throws [DartSdkMismatchException] when the cached Dart SDK does not match
