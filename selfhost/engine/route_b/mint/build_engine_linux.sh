@@ -51,7 +51,21 @@ need=90; [[ -d "$R/engine/src/flutter/third_party/dart/.git" ]] && need=55
 [[ -f "$R/engine/src/out/android_release/build.ninja" && -f "$R/engine/src/out/host_release/build.ninja" ]] && need=25
 need=${NEED_GB:-$need}
 mkdir -p "$(dirname "$R")"
-[[ $(free_gb "$(dirname "$R")") -ge $need ]] || die "need $need GB free for $R (have $(free_gb "$(dirname "$R")"))"
+if [[ $(free_gb "$(dirname "$R")") -lt $need ]]; then
+  # Name the built checkouts beside R, so a short disk points at reusing one rather than at deleting.
+  # They share R's disk, so they help only when R is not built yet and 25 GB is free.
+  hint=""
+  if [[ $need -gt 25 && $(free_gb "$(dirname "$R")") -ge 25 ]]; then
+    for t in "$(dirname "$R")"/*/engine/src/out/host_release/build.ninja; do
+      t=${t%/engine/src/out/host_release/build.ninja}
+      [[ -f $t/engine/src/out/host_release/build.ninja && -f $t/engine/src/out/android_release/build.ninja ]] || continue
+      [[ -e $R && $t -ef $R ]] && continue
+      hint+=" TREE=$(printf %q "$t")"
+    done
+  fi
+  [[ -n $hint ]] && hint="; a checkout with built android and host outputs needs only 25 GB, reuse one with:$hint"
+  die "need $need GB free for $R (have $(free_gb "$(dirname "$R")"))$hint"
+fi
 
 [[ -f $ENV_SH ]] || die "no toolchain env file at $ENV_SH (set ENV_SH)"
 # shellcheck disable=SC1090
