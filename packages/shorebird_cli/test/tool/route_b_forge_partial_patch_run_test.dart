@@ -212,6 +212,42 @@ void main() {
       expect(File('${container.path}.partial').existsSync(), isFalse);
     });
 
+    test(
+      '--reuse-first-payload keeps the last selector in a dry run',
+      () async {
+        final two = File('${dir.path}/two.sbrbptch')
+          ..writeAsBytesSync(
+            writeRouteBContainer(
+              releaseBuildId: 'abc123',
+              targets: [
+                RouteBPatchTarget(
+                  library: 'package:app/main.dart',
+                  selector: 'real',
+                  bytecode: Uint8List.fromList([1, 2, 3]),
+                ),
+                RouteBPatchTarget(
+                  library: 'package:app/main.dart',
+                  selector: 'second',
+                  bytecode: Uint8List.fromList([4, 5, 6]),
+                ),
+              ],
+            ),
+          );
+        final code = await run([
+          ...base(['--channel=beta', '--dry-run', '--reuse-first-payload']),
+          '--container=${two.path}',
+        ]);
+        expect(code, 0, reason: err.toString());
+        final targets = RouteBContainer.parse(
+          File('${two.path}.partial').readAsBytesSync(),
+        ).targets;
+        expect(targets.map((t) => t.selector), ['real', 'second']);
+        expect(targets.last.bytecode, [1, 2, 3]);
+        expect(out.toString(), contains("carries target 1's payload"));
+        expect(calls, isEmpty);
+      },
+    );
+
     test('refuses a channel that does not exist and creates none', () async {
       expect(
         await run(base(['--channel=nope', '--patch-tool=${shim.path}'])),

@@ -168,6 +168,100 @@ void main() {
         );
       });
     });
+
+    group('reuseFirstPayload', () {
+      final second = Uint8List.fromList([5, 6, 7]);
+      late Uint8List two;
+
+      setUp(() {
+        two = writeRouteBContainer(
+          releaseBuildId: 'abc123',
+          targets: [
+            RouteBPatchTarget(
+              library: 'package:app/main.dart',
+              selector: 'real',
+              bytecode: payload,
+            ),
+            RouteBPatchTarget(
+              library: 'package:app/other.dart',
+              selector: 'second',
+              bytecode: second,
+            ),
+          ],
+        );
+      });
+
+      test("keeps the last selector and gives it the first's payload", () {
+        final parsed = RouteBContainer.parse(
+          forgePartialContainer(two, reuseFirstPayload: true),
+        );
+        expect(parsed.releaseBuildId, 'abc123');
+        expect(parsed.targets, hasLength(2));
+        expect(parsed.targets.first.selector, 'real');
+        expect(parsed.targets.first.bytecode, payload);
+        expect(parsed.targets.last.library, 'package:app/other.dart');
+        expect(parsed.targets.last.selector, 'second');
+        expect(parsed.targets.last.bytecode, payload);
+      });
+
+      test('refuses a container whose last payload is already the first', () {
+        final same = writeRouteBContainer(
+          releaseBuildId: 'abc123',
+          targets: [
+            RouteBPatchTarget(
+              library: 'package:app/main.dart',
+              selector: 'real',
+              bytecode: payload,
+            ),
+            RouteBPatchTarget(
+              library: 'package:app/main.dart',
+              selector: 'second',
+              bytecode: Uint8List.fromList(payload),
+            ),
+          ],
+        );
+        expect(
+          () => forgePartialContainer(same, reuseFirstPayload: true),
+          throwsA(
+            isA<ForgeException>().having(
+              (e) => e.message,
+              'message',
+              contains("already carries the first target's payload"),
+            ),
+          ),
+        );
+      });
+
+      test('refuses a one-target container', () {
+        expect(
+          () => forgePartialContainer(original, reuseFirstPayload: true),
+          throwsA(
+            isA<ForgeException>().having(
+              (e) => e.message,
+              'message',
+              contains('at least two targets'),
+            ),
+          ),
+        );
+      });
+
+      test('refuses to combine with retargetLast', () {
+        expect(
+          () => forgePartialContainer(
+            two,
+            retargetLast: true,
+            reuseFirstPayload: true,
+          ),
+          throwsA(
+            isA<ForgeException>().having(
+              (e) => e.message,
+              'message',
+              contains('pick one'),
+            ),
+          ),
+        );
+      });
+    });
   });
 
   group('signAndVerify', () {

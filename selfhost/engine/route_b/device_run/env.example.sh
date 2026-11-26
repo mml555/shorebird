@@ -25,6 +25,7 @@ export PROXY_PORT="${PROXY_PORT:-18188}"
 export SERVER_PORT="${SERVER_PORT:-18290}"
 export NO_PROXY_HOSTS="${NO_PROXY_HOSTS:-localhost,127.0.0.1}"  # add the artifact upstream and Mac LAN hosts
 export EXTRA_PATH="${EXTRA_PATH:-/opt/homebrew/bin}"           # where ios-deploy and libimobiledevice live
+export KEYS_DIR="${KEYS_DIR:-$R/keys}"  # patch signing pair; release.sh creates private.pem/public.pem here if missing
 
 # --- Checks and derived values. No edits needed below. ---
 for v in R CLI UDID BASE ARTIFACT_UPSTREAM ENGINE_REV FLUTTER_REV SIGN_IDENTITY PROVISIONING_PROFILE TEAM_ID; do
