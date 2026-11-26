@@ -53,13 +53,17 @@ need=${NEED_GB:-$need}
 mkdir -p "$(dirname "$R")"
 if [[ $(free_gb "$(dirname "$R")") -lt $need ]]; then
   # Name the built checkouts beside R, so a short disk points at reusing one rather than at deleting.
+  # They share R's disk, so they help only when R is not built yet and 25 GB is free.
   hint=""
-  for t in "$(dirname "$R")"/*/engine/src/out/host_release/build.ninja; do
-    [[ -f $t ]] || continue
-    t=${t%/engine/src/out/host_release/build.ninja}; [[ $t == "$R" ]] && continue
-    hint+=" TREE=$t"
-  done
-  [[ -n $hint ]] && hint="; a built checkout needs only 25 GB, reuse one with:$hint"
+  if [[ $need -gt 25 && $(free_gb "$(dirname "$R")") -ge 25 ]]; then
+    for t in "$(dirname "$R")"/*/engine/src/out/host_release/build.ninja; do
+      t=${t%/engine/src/out/host_release/build.ninja}
+      [[ -f $t/engine/src/out/host_release/build.ninja && -f $t/engine/src/out/android_release/build.ninja ]] || continue
+      [[ -e $R && $t -ef $R ]] && continue
+      hint+=" TREE=$(printf %q "$t")"
+    done
+  fi
+  [[ -n $hint ]] && hint="; a checkout with built android and host outputs needs only 25 GB, reuse one with:$hint"
   die "need $need GB free for $R (have $(free_gb "$(dirname "$R")"))$hint"
 fi
 

@@ -76,8 +76,9 @@ Set `MINT_ENV=<your env file>` in your shell first. Every script prints a plan w
    `scp build_engine_linux.sh ci-build:/home/oem/`, then
    `ssh ci-build 'bash /srv/ci-cache/shorebird-engine/run_step.sh build bash /home/oem/build_engine_linux.sh --run <E>'`.
    The stage lands in `/home/oem/engine-stage/<E>`. To reuse an already synced or built tree, which needs 55 or 25 GB free instead of 90, run it as
-   `run_step.sh build env TREE=<path> bash /home/oem/build_engine_linux.sh --run <E>`. When space is short, the
-   refusal names the built trees it found beside the default one.
+   `ssh ci-build 'bash /srv/ci-cache/shorebird-engine/run_step.sh build env TREE=<path> bash /home/oem/build_engine_linux.sh --run <E>'`.
+   A built tree is one whose android and host release outputs are both built. When space is short, the refusal
+   names the built trees it found beside the default one.
 4. **OWNER: pull the Linux half.** `bash publish_engine.sh --pull-linux`. It checks the sums on ci-build
    (read-only), rsyncs the half to `$LINUX_HALF`, and checks the sums again.
 5. **Extras.** `bash prepare_inputs.sh --run`. It carries the three patch zips from the previous cell
