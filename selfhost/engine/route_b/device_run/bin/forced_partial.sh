@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC1090,SC2034
+# cspell:words idevicedate
 # The all-or-nothing rollback on a device: a patch built from two edits in different functions (the
 # shapes app's p06+p03 carries 3 targets), which must apply, then forged copies of it that must each be
 # refused and rolled back (packages/shorebird_cli/tool/route_b_forge_partial_patch.dart).
