@@ -35,6 +35,23 @@ say "verify Mac half in $MAC_STAGE"
 say "Linux half in $LINUX_HALF"
 [[ -f $LINUX_HALF/SHA256SUMS ]] || die "no $LINUX_HALF/SHA256SUMS: run $0 --pull-linux (owner) after the Linux build"
 ( cd "$LINUX_HALF" && shasum -a 256 -c --quiet SHA256SUMS && echo "Linux: $(wc -l < SHA256SUMS) files ok" )
+say "Dart SDK zips must say $DART"
+# The CLI checks the cached dart-sdk/revision against its table, so a stale label refuses every build
+# (engine c9a5421c: binaries from 28f6f83f, label 0cd04a77). Catch it here, before anything is published.
+python3 -I - "$DART" "$MAC_STAGE" "$LINUX_HALF" <<'PY' || die "a Dart SDK zip does not carry revision $DART"
+import glob, os, sys, zipfile
+want, roots = sys.argv[1], sys.argv[2:]
+zips = sorted(z for r in roots for z in glob.glob(os.path.join(r, "**", "dart-sdk-*.zip"), recursive=True))
+if not zips:
+    sys.exit("no dart-sdk-*.zip in " + " or ".join(roots))
+bad = 0
+for z in zips:
+    with zipfile.ZipFile(z) as f:
+        got = f.read("dart-sdk/revision").decode().strip()
+    print(("ok   " if got == want else "BAD  ") + got + "  " + z)
+    bad += got != want
+sys.exit(1 if bad else 0)
+PY
 for f in "${EXTRAS[@]}"; do [[ -f "$X/$f" ]] || die "missing $X/$f (prepare_inputs.sh and build_compiler.sh make the extras)"; done
 echo "extras: $(find "$X" -type f | wc -l | tr -d ' ') files ok"
 [[ -f "$MINT_DIR/engine-PROVENANCE.head.tmpl" ]] || die "missing engine-PROVENANCE.head.tmpl"

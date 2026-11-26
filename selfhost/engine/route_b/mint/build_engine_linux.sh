@@ -110,6 +110,10 @@ PY
     say "$shard: gn $gnargs -> out/$out"
     # shellcheck disable=SC2086
     ./flutter/tools/gn --no-rbe --no-enable-unittests --no-prebuilt-dart-sdk $gnargs
+    # Dart writes dart-sdk/revision in an action ninja never reruns when the Dart tree's HEAD moves
+    # (fixed in dart-sdk-shorebird-lineage #9), so an incremental build kept the old label beside new
+    # binaries (engine c9a5421c). Removing it makes ninja write it again.
+    rm -f "out/$out/dart-sdk/revision"
     say "$shard: ninja -C out/$out $targets"
     # shellcheck disable=SC2086
     nice -n 10 ionice -c3 ninja -C "out/$out" -j"$JOBS" $targets
