@@ -47,7 +47,7 @@ if not zips:
 bad = 0
 for z in zips:
     with zipfile.ZipFile(z) as f:
-        got = f.read("dart-sdk/revision").decode().strip()
+        got = f.read("dart-sdk/revision").decode().strip() if "dart-sdk/revision" in f.namelist() else "(no dart-sdk/revision)"
     print(("ok   " if got == want else "BAD  ") + got + "  " + z)
     bad += got != want
 sys.exit(1 if bad else 0)

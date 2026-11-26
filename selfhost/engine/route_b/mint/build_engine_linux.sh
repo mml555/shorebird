@@ -141,5 +141,21 @@ print(f"staged; {missing} missing")
 sys.exit(1 if missing else 0)
 PY
 # shellcheck disable=SC2094
+# The staged Dart SDK zips must carry the Dart this tree built: the CLI checks that label, and a stale
+# one (engine c9a5421c) is found otherwise only at publish time, after both builds.
+python3 -I - "$dart_have" "$S" <<'PY' || die "a staged Dart SDK zip does not carry revision $dart_have"
+import glob, os, sys, zipfile
+want, root = sys.argv[1], sys.argv[2]
+zips = sorted(glob.glob(os.path.join(root, "**", "dart-sdk-*.zip"), recursive=True))
+if not zips:
+    sys.exit("no dart-sdk-*.zip staged in " + root)
+bad = 0
+for z in zips:
+    with zipfile.ZipFile(z) as f:
+        got = f.read("dart-sdk/revision").decode().strip() if "dart-sdk/revision" in f.namelist() else "(no dart-sdk/revision)"
+    print(("ok   " if got == want else "BAD  ") + got + "  " + z)
+    bad += got != want
+sys.exit(1 if bad else 0)
+PY
 (cd "$S" && find . -type f ! -name SHA256SUMS -print0 | LC_ALL=C sort -z | xargs -0 sha256sum > SHA256SUMS)
 say "BUILD_ENGINE_LINUX_DONE $(wc -l < "$S/SHA256SUMS") files in $S; $(free_gb "$R") GB free"
