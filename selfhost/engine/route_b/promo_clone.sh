@@ -28,15 +28,16 @@
 # a failure removes it.
 #
 #   promo_clone.sh --from promo-<old> --cell <40 hex> --selector <40 hex> \
-#                  --repo-sha <40 hex> [--host ci-build] [--dry-run]
+#                  --repo-sha <40 hex> [--host ci-build] [--run]
 #
-# --dry-run prints what it would pin and changes nothing on ci-build.
+# Without --run it checks the preconditions, prints what it would pin and changes nothing on ci-build,
+# like the mint scripts. --run writes the workspace. --dry-run is still accepted and is the default.
 set -euo pipefail
 HERE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 REPO="$(git -C "$HERE" rev-parse --show-toplevel)"
 ROOT=/srv/ci-cache/shorebird-engine
 HOST=ci-build
-FROM="" CELL="" SEL="" RS="" DRY=0
+FROM="" CELL="" SEL="" RS="" DRY=1
 
 usage() { sed -n '3,25p' "$0" | sed 's/^# \{0,1\}//'; exit "${1:-2}"; }
 while (($#)); do
@@ -47,6 +48,7 @@ while (($#)); do
     --repo-sha) RS=${2:-}; shift 2 ;;
     --host) HOST=${2:-}; shift 2 ;;
     --dry-run) DRY=1; shift ;;
+    --run) DRY=0; shift ;;
     -h | --help) usage 0 ;;
     *) echo "unknown argument: $1" >&2; usage ;;
   esac
@@ -127,7 +129,7 @@ REMOTE
 }
 
 remote check
-if ((DRY)); then echo "DRY RUN: nothing written"; exit 0; fi
+if ((DRY)); then echo "PLAN ONLY: nothing written. Add --run to write the workspace."; exit 0; fi
 T=$(mktemp -d); trap 'rm -rf "${T:?}"' EXIT
 git -C "$REPO" archive "$RS" selfhost/ci | tar -x -C "$T"
 # Mac tar adds AppleDouble (._*) entries that GNU tar on ci-build extracts as
