@@ -80,6 +80,66 @@ void main() {
     test('refuses bytes that are not a container', () {
       expect(() => forgePartialContainer(Uint8List(32)), throwsFormatException);
     });
+
+    group('retargetLast', () {
+      final second = Uint8List.fromList([5, 6, 7]);
+      late Uint8List two;
+
+      setUp(() {
+        two = writeRouteBContainer(
+          releaseBuildId: 'abc123',
+          targets: [
+            RouteBPatchTarget(
+              library: 'package:app/main.dart',
+              selector: 'real',
+              bytecode: payload,
+            ),
+            RouteBPatchTarget(
+              library: 'package:app/other.dart',
+              selector: 'second',
+              bytecode: second,
+            ),
+          ],
+        );
+      });
+
+      test('renames the last target and keeps its own payload', () {
+        final parsed = RouteBContainer.parse(
+          forgePartialContainer(two, retargetLast: true),
+        );
+        expect(parsed.releaseBuildId, 'abc123');
+        expect(parsed.targets, hasLength(2));
+        expect(parsed.targets.first.selector, 'real');
+        expect(parsed.targets.first.bytecode, payload);
+        expect(parsed.targets.last.selector, defaultBogusSelector);
+        expect(parsed.targets.last.library, 'package:app/other.dart');
+        expect(parsed.targets.last.bytecode, second);
+      });
+
+      test('refuses a one-target container', () {
+        expect(
+          () => forgePartialContainer(original, retargetLast: true),
+          throwsA(
+            isA<ForgeException>().having(
+              (e) => e.message,
+              'message',
+              contains('at least two targets'),
+            ),
+          ),
+        );
+      });
+
+      test('refuses a selector the container already has', () {
+        expect(
+          () => forgePartialContainer(
+            two,
+            retargetLast: true,
+            bogusSelector: 'real',
+          ),
+          throwsA(isA<ForgeException>()),
+        );
+      });
+    });
   });
 
   group('signAndVerify', () {

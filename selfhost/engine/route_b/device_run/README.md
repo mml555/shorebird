@@ -110,6 +110,16 @@ dart run tool/route_b_forge_partial_patch.dart --i-know-this-is-a-test-patch \
   --dry-run    # forges and verifies, publishes nothing
 ```
 
+On engines up to 64abe347 (cell 97f91aff), use `--retarget-last` with a patch
+built from two edits in different functions (for example
+`p06_async_return+p03_setstate_closure`). Without it, the appended target
+carries a copy of the first target's payload. Those engines load that payload
+before they look up the selector, its library is already loaded, and the app
+crashes (SIGSEGV in `Exceptions::JumpToFrame`) instead of rolling back.
+`--retarget-last` renames the last real target instead, so its payload is one
+no earlier target loaded. The engine then refuses it as `target-missing`, and
+N in the expected line below is the number of targets before it.
+
 The forged container is always written to `<container>.partial` (or `--out`).
 Drop `--dry-run` to publish; it needs `SHOREBIRD_TOKEN` and
 `SHOREBIRD_HOSTED_URL` (what `env.sh` exports) and the engine `patch` tool
