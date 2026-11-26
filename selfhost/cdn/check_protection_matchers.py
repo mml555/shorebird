@@ -44,6 +44,10 @@ PROTECTED_CELLS = [
     '09c6f4225d3ddf276fe4f3473beca79e038360b6',   # engine 09c6f422 (e737ede3 with the updater from mirror #14, 64a458f0)
     'f2458551039ceb1a48a2ffb4a41dff35950fec5b',   # minted cell over 09c6f422's bytes (Flutter 3.50, Route B iOS)
     '9995f9571ec94b60eca64ec7eaae5fa190285b4d',   # cell f2458551 re-minted with analyzer v24 (#277) by mint_cell_v2.sh (Flutter 3.50, Route B iOS)
+    'c9a5421ce57c8f9091462400fbc606ea0f7364ac',   # Flutter 3.50 engine (withdrawn: stale Dart SDK label; served, never overwrite)
+    '04e5ef97bb563da87cf32dc1380bc632a14d7bd3',   # Flutter 3.50: minted cell over engine c9a5421c (withdrawn)
+    '64abe347da9ba3901b8c235aaf1f97dcda7f28eb',   # engine 64abe347 (Flutter 3.50, Dart 39c02d7f, built on Shorebird flutter_release/3.50.0)
+    '97f91aff85e1db8b724afb51ff0e91466b78764c',   # minted cell over 64abe347's bytes (Flutter 3.50, Route B iOS)
 ]
 # Hashes that publish OUR linux-x64 host toolchain, so linux-x64/font-subset.zip
 # (it carries our const_finder) is owned for them and for no other hash.
@@ -65,6 +69,10 @@ LINUX_FONT_CELLS = [
     '09c6f4225d3ddf276fe4f3473beca79e038360b6',   # engine 09c6f422 (e737ede3 with the updater from mirror #14, 64a458f0)
     'f2458551039ceb1a48a2ffb4a41dff35950fec5b',   # minted cell over 09c6f422's bytes (Flutter 3.50, Route B iOS)
     '9995f9571ec94b60eca64ec7eaae5fa190285b4d',   # cell f2458551 re-minted with analyzer v24 (#277) by mint_cell_v2.sh (Flutter 3.50, Route B iOS)
+    'c9a5421ce57c8f9091462400fbc606ea0f7364ac',   # Flutter 3.50 engine (withdrawn: stale Dart SDK label; served, never overwrite)
+    '04e5ef97bb563da87cf32dc1380bc632a14d7bd3',   # Flutter 3.50: minted cell over engine c9a5421c (withdrawn)
+    '64abe347da9ba3901b8c235aaf1f97dcda7f28eb',   # engine 64abe347 (Flutter 3.50, Dart 39c02d7f, built on Shorebird flutter_release/3.50.0)
+    '97f91aff85e1db8b724afb51ff0e91466b78764c',   # minted cell over 64abe347's bytes (Flutter 3.50, Route B iOS)
 ]
 # Hashes that publish OUR darwin-x64 host toolchain.
 DARWIN_X64_FONT_CELLS = [
@@ -84,6 +92,10 @@ DARWIN_X64_FONT_CELLS = [
     '09c6f4225d3ddf276fe4f3473beca79e038360b6',   # engine 09c6f422 (e737ede3 with the updater from mirror #14, 64a458f0)
     'f2458551039ceb1a48a2ffb4a41dff35950fec5b',   # minted cell over 09c6f422's bytes (Flutter 3.50, Route B iOS)
     '9995f9571ec94b60eca64ec7eaae5fa190285b4d',   # cell f2458551 re-minted with analyzer v24 (#277) by mint_cell_v2.sh (Flutter 3.50, Route B iOS)
+    'c9a5421ce57c8f9091462400fbc606ea0f7364ac',   # Flutter 3.50 engine (withdrawn: stale Dart SDK label; served, never overwrite)
+    '04e5ef97bb563da87cf32dc1380bc632a14d7bd3',   # Flutter 3.50: minted cell over engine c9a5421c (withdrawn)
+    '64abe347da9ba3901b8c235aaf1f97dcda7f28eb',   # engine 64abe347 (Flutter 3.50, Dart 39c02d7f, built on Shorebird flutter_release/3.50.0)
+    '97f91aff85e1db8b724afb51ff0e91466b78764c',   # minted cell over 64abe347's bytes (Flutter 3.50, Route B iOS)
 ]
 # Cells whose sky/gpu packages are protected but whose iOS modes are not.
 SKY_ONLY_CELLS = [
