@@ -51,7 +51,17 @@ need=90; [[ -d "$R/engine/src/flutter/third_party/dart/.git" ]] && need=55
 [[ -f "$R/engine/src/out/android_release/build.ninja" && -f "$R/engine/src/out/host_release/build.ninja" ]] && need=25
 need=${NEED_GB:-$need}
 mkdir -p "$(dirname "$R")"
-[[ $(free_gb "$(dirname "$R")") -ge $need ]] || die "need $need GB free for $R (have $(free_gb "$(dirname "$R")"))"
+if [[ $(free_gb "$(dirname "$R")") -lt $need ]]; then
+  # Name the built checkouts beside R, so a short disk points at reusing one rather than at deleting.
+  hint=""
+  for t in "$(dirname "$R")"/*/engine/src/out/host_release/build.ninja; do
+    [[ -f $t ]] || continue
+    t=${t%/engine/src/out/host_release/build.ninja}; [[ $t == "$R" ]] && continue
+    hint+=" TREE=$t"
+  done
+  [[ -n $hint ]] && hint="; a built checkout needs only 25 GB, reuse one with:$hint"
+  die "need $need GB free for $R (have $(free_gb "$(dirname "$R")"))$hint"
+fi
 
 [[ -f $ENV_SH ]] || die "no toolchain env file at $ENV_SH (set ENV_SH)"
 # shellcheck disable=SC1090
