@@ -467,6 +467,8 @@ overrides:
     words: [stdev]
 
 words:
+  # Python's zipfile.ZipFile.namelist, in the Route B mint's Dart SDK checks (#301).
+  - namelist
   # The ureq HTTP client crate, named in the updater and selfhost records (mirror #11).
   - ureq
   # --- BACKUP-RESTORE-1. Vocabulary shared by the backup/restore scripts, the
