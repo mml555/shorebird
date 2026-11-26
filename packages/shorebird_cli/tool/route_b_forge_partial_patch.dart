@@ -6,7 +6,9 @@
 // `rolled back N/N attached targets, main runs the release code`).
 //
 // It takes the container `shorebird patch` produced, keeps its real target
-// first, appends one target whose selector does not exist in the release,
+// first, appends one target whose selector does not exist in the release (or,
+// with --retarget-last, renames the last real target to such a selector, so
+// the forged patch has one real target fewer than the one built),
 // signs the new bytes the way the CLI does, and publishes the result as a NEW
 // patch on the same release. The CLI refuses such a patch before upload, by
 // design; this tool is the only way one reaches the server, and it must never
@@ -47,15 +49,28 @@ const allowStableFlag = 'allow-stable';
 /// absent from any release.
 const defaultBogusSelector = 'selfhost_forged_partial_patch_no_such_selector';
 
-/// Returns [container]'s bytes with one target appended: a copy of the first
-/// target's library and payload under [bogusSelector]. The real targets keep
-/// their order and the release build id is unchanged.
+/// Returns [container]'s bytes with its last target made to fail: the release
+/// build id is unchanged and every target before the failing one keeps its
+/// order, library and payload.
+///
+/// By default one target is appended: a copy of the first target's library
+/// and payload under [bogusSelector]. Engines up to 64abe347 crash on that
+/// container instead of rolling back: they load the copied payload before
+/// looking up the selector, and the payload's library is already loaded.
+///
+/// With [retargetLast], the container's last target is renamed to
+/// [bogusSelector] instead, keeping its own payload, which must differ from
+/// every earlier target's (checked). Every engine refuses it as
+/// `target-missing` and rolls back the targets before it. It needs a
+/// container with at least two targets, and the forged patch has one real
+/// target fewer than the one built.
 ///
 /// Throws [FormatException] if [container] is not a container, and
-/// [ForgeException] if it has no target to copy the payload from.
+/// [ForgeException] if it has no target to keep first.
 Uint8List forgePartialContainer(
   Uint8List container, {
   String bogusSelector = defaultBogusSelector,
+  bool retargetLast = false,
 }) {
   final parsed = RouteBContainer.parse(container);
   if (parsed.targets.isEmpty) {
@@ -64,7 +79,38 @@ Uint8List forgePartialContainer(
   if (parsed.targets.any((t) => t.selector == bogusSelector)) {
     throw ForgeException(
       'the container already has a target named $bogusSelector; pick another '
-      '--bogus-selector so the appended one is the one that fails',
+      '--bogus-selector so the forged one is the one that fails',
+    );
+  }
+  if (retargetLast) {
+    if (parsed.targets.length < 2) {
+      throw ForgeException(
+        '--retarget-last needs a container with at least two targets (this '
+        'one has ${parsed.targets.length}): the last is renamed to fail and '
+        'the ones before it are what the engine rolls back. Build the patch '
+        'from two edits in different functions.',
+      );
+    }
+    final last = parsed.targets.last;
+    final earlier = parsed.targets.take(parsed.targets.length - 1);
+    if (earlier.any((t) => t.sha256Hex == last.sha256Hex)) {
+      throw ForgeException(
+        'the last target carries the same payload as an earlier one, so the '
+        'engine would load it twice; engines up to 64abe347 crash on that '
+        'instead of rolling back. Build the patch from edits whose payloads '
+        'differ.',
+      );
+    }
+    return writeRouteBContainer(
+      releaseBuildId: parsed.releaseBuildId,
+      targets: [
+        ...parsed.targets.take(parsed.targets.length - 1),
+        RouteBPatchTarget(
+          library: last.library,
+          selector: bogusSelector,
+          bytecode: last.bytecode,
+        ),
+      ],
     );
   }
   final real = parsed.targets.first;
@@ -133,8 +179,16 @@ ArgParser _parser() => ArgParser()
   ..addOption(
     'bogus-selector',
     defaultsTo: defaultBogusSelector,
+    help: 'Selector of the forged target, which must not exist in the release.',
+  )
+  ..addFlag(
+    'retarget-last',
+    negatable: false,
     help:
-        'Selector of the appended target, which must not exist in the release.',
+        'Rename the last target to the bogus selector instead of appending a '
+        'copy of the first. Needs two or more targets with distinct payloads. '
+        'Safe on every engine; required on engines up to 64abe347, which '
+        'crash on the appended copy.',
   )
   ..addOption('private-key', help: "The release's patch private key (PEM).")
   ..addOption('public-key', help: "The release's patch public key (PEM).")
@@ -267,6 +321,7 @@ Future<void> _run(
   final forged = forgePartialContainer(
     original,
     bogusSelector: r['bogus-selector'] as String,
+    retargetLast: r['retarget-last'] as bool,
   );
   final signature = signAndVerify(
     forged,

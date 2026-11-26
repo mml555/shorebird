@@ -110,6 +110,18 @@ dart run tool/route_b_forge_partial_patch.dart --i-know-this-is-a-test-patch \
   --dry-run    # forges and verifies, publishes nothing
 ```
 
+By default the appended target carries a copy of the first target's payload.
+Engines up to 64abe347 (cell 97f91aff) load that payload before they look up
+the selector. Its library is already loaded, and the app crashes (a segfault
+in `Exceptions::JumpToFrame`) instead of rolling back. On those engines, use
+`--retarget-last` with a patch built from two edits in different functions
+(for example `p06_async_return+p03_setstate_closure`). It is safe on every
+engine. It renames the last target in the container, the one the dry run marks
+`<- bogus`, and keeps that target's own payload, which the tool checks differs
+from every earlier one. The engine then refuses it as `target-missing`. The
+forged patch has one real target fewer than the one built, and N in the
+expected line below is the number of targets before the renamed one.
+
 The forged container is always written to `<container>.partial` (or `--out`).
 Drop `--dry-run` to publish; it needs `SHOREBIRD_TOKEN` and
 `SHOREBIRD_HOSTED_URL` (what `env.sh` exports) and the engine `patch` tool
