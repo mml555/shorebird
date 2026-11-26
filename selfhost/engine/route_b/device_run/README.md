@@ -28,6 +28,10 @@ to see which patch ran.
 cp env.example.sh env.sh      # fill in every REPLACE_ME
 ```
 
+Releases and patches are signed. `release.sh` creates a key pair in `KEYS_DIR`
+(default `$R/keys`) if none is there and reuses it otherwise. Keep `R` outside the
+repo, and never commit `private.pem`.
+
 Put `API_KEY` and `URL_SIGNING_SECRET` in a `secrets.sh` that exports them (the
 path is `SECRETS_FILE`, default `$R/secrets.sh`). `env.sh` and `secrets.sh` are
 git-ignored. Never commit them. A script stops with a message if a required
@@ -52,8 +56,12 @@ All in `bin/`. Run them in this order.
    patch 5: three edits that must publish, two that must be
    refused before upload, then a rollback of the newest patch.
 5. `all.sh` runs `steps.sh` then `steps2.sh`.
+6. `forced_partial.sh` shows the all-or-nothing rollback: a patch built from two
+   edits, then forged copies of it that must each be refused and rolled back. See
+   [Forced partial patch](#forced-partial-patch-all-or-nothing-rollback).
 
-`lib.sh` holds the shared `launch` and `patch` helpers. Logs go to `$R/logs`
+`lib.sh` holds the shared helpers: `launch` (under the debugger), `boot` (detached, so a
+crash leaves a crash report), `crash_reports` (fetches them) and `patch`. Logs go to `$R/logs`
 and screenshots to `$R/shots`.
 
 `shapes/` is the test app: `main.dart` and `tally.dart` are the base, and
@@ -80,9 +88,8 @@ attached when one target fails. The CLI refuses such a patch before upload, so
 this tool is the only way one reaches the server.
 
 It takes the container a normal `shorebird patch` produced
-(`<app>/build/route_b/patch.sbrbptch`), keeps its real targets first, appends
-one target with a selector the release does not have (the first payload is
-copied), signs the new bytes with the release's patch private key, checks the
+(`<app>/build/route_b/patch.sbrbptch`), makes its last target fail (the modes are
+below), signs the new bytes with the release's patch private key, checks the
 signature against the public key, and publishes a NEW patch on the same
 release. It refuses to run without `--i-know-this-is-a-test-patch`.
 
@@ -110,17 +117,35 @@ dart run tool/route_b_forge_partial_patch.dart --i-know-this-is-a-test-patch \
   --dry-run    # forges and verifies, publishes nothing
 ```
 
-By default the appended target carries a copy of the first target's payload.
-Engines up to 64abe347 (cell 97f91aff) load that payload before they look up
-the selector. Its library is already loaded, and the app crashes (a segfault
-in `Exceptions::JumpToFrame`) instead of rolling back. On those engines, use
-`--retarget-last` with a patch built from two edits in different functions
-(for example `p06_async_return+p03_setstate_closure`). It is safe on every
-engine. It renames the last target in the container, the one the dry run marks
-`<- bogus`, and keeps that target's own payload, which the tool checks differs
-from every earlier one. The engine then refuses it as `target-missing`. The
-forged patch has one real target fewer than the one built, and N in the
-expected line below is the number of targets before the renamed one.
+The tool forges the last target in one of three ways:
+
+| Mode | Last target | Engine 88a7bf8c and later | Engines up to 64abe347 |
+| --- | --- | --- | --- |
+| default (append) | a new target with a bogus selector and a copy of the first payload | `REFUSED (target-missing)` | crash |
+| `--retarget-last` | the last real target, renamed to a bogus selector, with its own payload | `REFUSED (target-missing)` | `REFUSED (target-missing)` |
+| `--reuse-first-payload` | the last real target, with its own selector and the first target's payload | `REFUSED (invalid-bytecode)`, after `ROUTEB: payload library <uri> is already loaded` | crash |
+
+Engines up to 64abe347 (cell 97f91aff) load a target's payload before they look
+up its selector. When the payload's library is already loaded, the app crashes
+(a segfault in `Exceptions::JumpToFrame`) instead of rolling back. Later engines
+look up the selector first and refuse an already-loaded library
+(dart-sdk-shorebird-lineage#10). Only `--reuse-first-payload` reaches that
+check. The append mode is refused earlier, at the selector.
+
+`--retarget-last` and `--reuse-first-payload` need a patch built from two edits in
+different functions, such as `p06_async_return+p03_setstate_closure`, whose last
+payload differs from the first (the tool checks). In the forged patch, N in the
+expected line below is the number of targets before the last one.
+
+`bin/forced_partial.sh` runs the whole sequence: the patch built from
+`p06_async_return+p03_setstate_closure` (3 targets in the shapes app), then each
+mode in `FORGE_MODES` (default all three; use `FORGE_MODES=retarget-last` on
+engines up to 64abe347). With that patch, the rollback reads 2/2 for
+`--retarget-last` and `--reuse-first-payload` and 3/3 for the append mode. Each
+forged patch is downloaded, booted, and booted again once the updater has marked
+it bad. The script prints `PASS` or `FAIL` per mode, fails on any crash report the
+phone wrote during the run, and exits 1 on a failure. Patches go to `stable`, the
+channel the app polls. Logs go to `$R/logs/forced_partial`.
 
 The forged container is always written to `<container>.partial` (or `--out`).
 Drop `--dry-run` to publish; it needs `SHOREBIRD_TOKEN` and
@@ -129,12 +154,14 @@ Drop `--dry-run` to publish; it needs `SHOREBIRD_TOKEN` and
 overrides the fake name.
 
 Expected device log. The normal patch applies and the app shows the patched
-behaviour. The forced partial logs the bogus target as `REFUSED (...)` (the
-reason is `target-missing`), then
+behaviour. The forced partial logs the forged target as `REFUSED (...)`, with the
+reason the table gives, then
 
 ```
 rolled back N/N attached targets, main runs the release code
 ```
 
 where N is the number of real targets the patch attached: 1 for a one-target
-patch. The app shows release behaviour, not the patched one.
+patch. The app shows release behaviour, not the patched one. The updater then
+marks the forged patch bad (`Patch <n> is known bad, skipping`), and the next
+boot runs the previous patch again.

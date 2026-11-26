@@ -1,18 +1,19 @@
 // SELFHOST TEST INSTRUMENT. Not part of the shipping CLI.
 //
 // Publishes a deliberately PARTIAL Route B iOS patch, so an iPhone run can show
-// the engine's all-or-nothing rollback (engine c9a5421c: when any target fails
-// to activate, the targets this launch attached are put back and the log reads
-// `rolled back N/N attached targets, main runs the release code`).
+// the engine's all-or-nothing rollback (engines from c9a5421c: when any target
+// fails to activate, the targets this launch attached are put back and the log
+// reads `rolled back N/N attached targets, main runs the release code`).
 //
 // It takes the container `shorebird patch` produced, keeps its real target
-// first, appends one target whose selector does not exist in the release (or,
-// with --retarget-last, renames the last real target to such a selector, so
-// the forged patch has one real target fewer than the one built),
-// signs the new bytes the way the CLI does, and publishes the result as a NEW
-// patch on the same release. The CLI refuses such a patch before upload, by
-// design; this tool is the only way one reaches the server, and it must never
-// be wired into the shipping CLI.
+// first, and makes the last target fail: by default it appends one target whose
+// selector does not exist in the release; --retarget-last renames the last real
+// target to such a selector, so the forged patch has one real target fewer than
+// the one built; --reuse-first-payload gives the last real target the first
+// target's payload. It signs the new bytes the way the CLI does and publishes
+// the result as a NEW patch on the same release. The CLI refuses such a patch
+// before upload, by design; this tool is the only way one reaches the server,
+// and it must never be wired into the shipping CLI.
 //
 // Usage: see selfhost/engine/route_b/device_run/README.md ("Forced partial
 // patch").
@@ -65,16 +66,61 @@ const defaultBogusSelector = 'selfhost_forged_partial_patch_no_such_selector';
 /// container with at least two targets, and the forged patch has one real
 /// target fewer than the one built.
 ///
+/// With [reuseFirstPayload], the container's last target keeps its library
+/// and selector, which exist in the release, but carries the first target's
+/// payload. Engines from 88a7bf8c on resolve the target, find the payload's
+/// library already loaded by the first target, refuse it as
+/// `invalid-bytecode` and roll back the targets before it. Engines up to
+/// 64abe347 crash on it, as on the default container. It needs a container
+/// with at least two targets whose last payload differs from the first.
+///
 /// Throws [FormatException] if [container] is not a container, and
 /// [ForgeException] if it has no target to keep first.
 Uint8List forgePartialContainer(
   Uint8List container, {
   String bogusSelector = defaultBogusSelector,
   bool retargetLast = false,
+  bool reuseFirstPayload = false,
 }) {
   final parsed = RouteBContainer.parse(container);
   if (parsed.targets.isEmpty) {
     throw ForgeException('the container has no real target to keep first');
+  }
+  if (retargetLast && reuseFirstPayload) {
+    throw ForgeException(
+      '--retarget-last and --reuse-first-payload each forge the last target; '
+      'pick one.',
+    );
+  }
+  if (reuseFirstPayload) {
+    if (parsed.targets.length < 2) {
+      throw ForgeException(
+        '--reuse-first-payload needs a container with at least two targets '
+        '(this one has ${parsed.targets.length}): the last is given the '
+        "first's payload and the ones before it are what the engine rolls "
+        'back. Build the patch from two edits in different functions.',
+      );
+    }
+    final first = parsed.targets.first;
+    final last = parsed.targets.last;
+    if (last.sha256Hex == first.sha256Hex) {
+      throw ForgeException(
+        "the last target already carries the first target's payload, so "
+        'the forged container would equal the one built. Build the patch '
+        'from edits whose payloads differ.',
+      );
+    }
+    return writeRouteBContainer(
+      releaseBuildId: parsed.releaseBuildId,
+      targets: [
+        ...parsed.targets.take(parsed.targets.length - 1),
+        RouteBPatchTarget(
+          library: last.library,
+          selector: last.selector,
+          bytecode: first.bytecode,
+        ),
+      ],
+    );
   }
   if (parsed.targets.any((t) => t.selector == bogusSelector)) {
     throw ForgeException(
@@ -189,6 +235,15 @@ ArgParser _parser() => ArgParser()
         'copy of the first. Needs two or more targets with distinct payloads. '
         'Safe on every engine; required on engines up to 64abe347, which '
         'crash on the appended copy.',
+  )
+  ..addFlag(
+    'reuse-first-payload',
+    negatable: false,
+    help:
+        "Give the last target the first target's payload, keeping its real "
+        'selector. Needs two or more targets. Engines from 88a7bf8c on refuse '
+        'it as invalid-bytecode (the payload library is already loaded) and '
+        'roll back; engines up to 64abe347 crash on it.',
   )
   ..addOption('private-key', help: "The release's patch private key (PEM).")
   ..addOption('public-key', help: "The release's patch public key (PEM).")
@@ -317,11 +372,18 @@ Future<void> _run(
     if (!f.existsSync()) throw ForgeException('${f.path} does not exist.');
   }
 
+  if ((r['reuse-first-payload'] as bool) && r.wasParsed('bogus-selector')) {
+    throw ForgeException(
+      '--bogus-selector has no effect with --reuse-first-payload, which keeps '
+      "the last target's real selector; drop one.",
+    );
+  }
   final original = File(containerPath).readAsBytesSync();
   final forged = forgePartialContainer(
     original,
     bogusSelector: r['bogus-selector'] as String,
     retargetLast: r['retarget-last'] as bool,
+    reuseFirstPayload: r['reuse-first-payload'] as bool,
   );
   final signature = signAndVerify(
     forged,
@@ -340,7 +402,11 @@ Future<void> _run(
     ..writeln('targets:');
   for (var i = 0; i < parsed.targets.length; i++) {
     final t = parsed.targets[i];
-    final mark = i == parsed.targets.length - 1 ? '   <- bogus, must fail' : '';
+    final mark = i != parsed.targets.length - 1
+        ? ''
+        : r['reuse-first-payload'] as bool
+        ? "   <- carries target 1's payload, must fail"
+        : '   <- bogus, must fail';
     o.writeln('  ${i + 1}. ${t.library} :: ${t.selector}$mark');
   }
   o

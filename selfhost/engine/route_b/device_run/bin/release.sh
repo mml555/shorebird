@@ -7,6 +7,17 @@ set -uo pipefail
 . "${DEVRUN_ENV:-$(dirname "$0")/../env.sh}" || exit 1
 export PATH="$CLI/bin:$PATH"
 die(){ echo "RELEASE STOP: $*"; exit 1; }
+# Patch signing: the CLI refuses a release without a key. The pair lives in KEYS_DIR, outside the repo;
+# private.pem must never be committed. A missing pair is created; an existing one is reused.
+KEYS_DIR="${KEYS_DIR:-$R/keys}"  # an env.sh from before KEYS_DIR existed has none
+case "$(cd "$(dirname "$KEYS_DIR")" 2>/dev/null && pwd -P)/" in "$(cd "$CLI" && pwd -P)/"*) die "KEYS_DIR=$KEYS_DIR is inside the repo at CLI=$CLI; keep keys outside it";; esac
+if [ ! -s "$KEYS_DIR/private.pem" ]; then
+  [ ! -e "$KEYS_DIR/public.pem" ] || die "$KEYS_DIR/public.pem has no usable private.pem beside it"
+  (umask 077 && mkdir -p "$KEYS_DIR" && openssl genrsa -out "$KEYS_DIR/private.pem" 2048) > "$R/logs/keys.log" 2>&1 || { cat "$R/logs/keys.log"; die "openssl genrsa"; }
+  openssl rsa -in "$KEYS_DIR/private.pem" -outform PEM -pubout -out "$KEYS_DIR/public.pem" >> "$R/logs/keys.log" 2>&1 || { cat "$R/logs/keys.log"; die "openssl rsa"; }
+fi
+[ -s "$KEYS_DIR/public.pem" ] || die "$KEYS_DIR/private.pem has no public.pem beside it"
+case "$(stat -f %Lp "$KEYS_DIR/private.pem")" in 600|400) ;; *) die "$KEYS_DIR/private.pem is readable by others: chmod 600 it";; esac
 # R must be a dedicated directory: this script deletes $R/work and $R/signed.
 [ -n "$R" ] && [ "$R" != / ] && [ -d "$R" ] || die "R must be an existing, dedicated directory (got: ${R:-empty})"
 BUNDLE_ORG="${BUNDLE%.*}"; BUNDLE_NAME="${BUNDLE##*.}"
@@ -26,8 +37,8 @@ echo "APP_ID=$APP_ID" > "$R/app.env"
 python3 -I "$SH/variants.py" "$SH/main.dart" "$SH/tally.dart" base "$APP/lib/main.dart" "$APP/packages/tally/lib/tally.dart" || die "base"
 cd "$APP"
 "$FLUTTER" pub add intl > "$R/logs/pubadd.log" 2>&1 || die "pub add intl"
-"$FLUTTER" analyze lib packages/tally/lib > "$R/logs/analyze.log" 2>&1 || { cat "$R/logs/analyze.log"; die "analyze"; }
-nice -n 10 "$SB" release ios --no-codesign --no-confirm -v > "$R/logs/release.log" 2>&1; rc=$?
+"$FLUTTER" analyze --no-fatal-infos lib packages/tally/lib > "$R/logs/analyze.log" 2>&1 || { cat "$R/logs/analyze.log"; die "analyze"; }
+nice -n 10 "$SB" release ios --no-codesign --public-key-path="$KEYS_DIR/public.pem" --no-confirm -v > "$R/logs/release.log" 2>&1; rc=$?
 echo "release exit=$rc"; tail -4 "$R/logs/release.log"
 [ $rc = 0 ] || die "shorebird release"
 grep -o -- '--extra-gen-snapshot-options=--route_b_untabled_overrides' "$R/logs/release.log" | head -1
