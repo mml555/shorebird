@@ -26,10 +26,10 @@ cp "$APP/build/route_b/patch.sbrbptch" "$L/two.sbrbptch"
 boot two_download 30; boot two_boot 25
 for m in $MODES; do
   case "$m" in retarget-last|reuse-first-payload) flag=(--"$m");; append) flag=();; *) echo "unknown FORGE_MODES entry: $m"; exit 1;; esac
-  (cd "$CLI/packages/shorebird_cli" && dart run tool/route_b_forge_partial_patch.dart --i-know-this-is-a-test-patch "${flag[@]}" \
+  (cd "$CLI/packages/shorebird_cli" && dart run tool/route_b_forge_partial_patch.dart --i-know-this-is-a-test-patch ${flag[@]+"${flag[@]}"} \
     --container "$L/two.sbrbptch" --out "$L/$m.sbrbptch" --patch-tool "$CLI/bin/cache/artifacts/patch/patch" \
     --private-key "$KEYS_DIR/private.pem" --public-key "$KEYS_DIR/public.pem" \
-    --app-id "$APP_ID" --release-version "$VERSION" --channel "$CHANNEL" "${allow[@]}") > "$L/forge_$m.txt" 2>&1
+    --app-id "$APP_ID" --release-version "$VERSION" --channel "$CHANNEL" ${allow[@]+"${allow[@]}"}) > "$L/forge_$m.txt" 2>&1
   rc=$?; echo "=== $m: forge exit=$rc"; grep -E '^  [0-9]+\.|published|release id' "$L/forge_$m.txt"
   [ $rc = 0 ] || { tail -5 "$L/forge_$m.txt"; exit 1; }
   boot "${m}_download" 30; boot "${m}_boot" 25; boot "${m}_after" 25
