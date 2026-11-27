@@ -10,7 +10,7 @@ ProcessException: fatal: ref HEAD is not a symbolic ref
 
   Command: git symbolic-ref HEAD
 APK=build/app/outputs/apk/release/app-release.apk
--rw-------@ 1 mendel  staff  45072851 Nov 26 21:05 ~/Developer/shorebird-wt/devrun/android-83198f59/release.apk
+-rw-------@ 1 user  staff  45072851 Nov 26 21:05 ~/Developer/shorebird-wt/devrun/android-83198f59/release.apk
 675bf5144a91250361105b6559be42065a88424703cde7b851f83ea9bcc968e4  ~/Developer/shorebird-wt/devrun/android-83198f59/release.apk
 Success
 Performing Streamed Install
