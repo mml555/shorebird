@@ -380,9 +380,10 @@ import 'package:kernel/type_environment.dart';
 ///
 /// Version 25 narrows the operand that is provably a `_Future`: a call of a
 /// statically resolved `async` function, static method, extension method or
-/// `super` method, or of the `Future` constructors that return a `_Future`
-/// (`Future.delayed`, `Future.value`, `Future.sync`, `Future.microtask`,
-/// `Future()`). It reports the entry with `receiverClass` `_Future`, which the
+/// `super` method (not one in a mixin), or of the `Future` constructors that
+/// always return a new `_Future` (`Future.delayed`, `Future.value`,
+/// `Future.microtask`, `Future()`; not `Future.sync`, which returns the
+/// computation's own `Future`). It reports the entry with `receiverClass` `_Future`, which the
 /// CLI's kept check does not take for a hazard (awaiting a `_Future` never calls
 /// `then`), where 24 reported the unnarrowed `Future.then`, so a release that
 /// allocates a `TickerFuture` with no compiled `then` no longer refuses
@@ -4357,19 +4358,27 @@ class _ExternalUses extends RecursiveVisitor {
     if (operand is StaticInvocation) {
       target = operand.target;
     } else if (operand is SuperMethodInvocation) {
+      // In a mixin, `interfaceTarget` is the member of the `on` type, not what
+      // the application's superclass runs, so it proves nothing there.
+      TreeNode? n = operand.parent;
+      while (n != null && n is! Class) {
+        n = n.parent;
+      }
+      if (n is Class && n.isMixinDeclaration) return false;
       final t = operand.interfaceTarget;
-      if (t == null) return false;
+      if (t == null || t.isAbstract) return false;
       target = t;
     } else {
       return false;
     }
     if (target is! Procedure) return false;
     if (target.function.asyncMarker == AsyncMarker.Async) return true;
-    // The constructors of `Future` that return a `_Future`: `Future()` has the
-    // empty name.
+    // The constructors of `Future` that always return a new `_Future`:
+    // `Future()` has the empty name. `Future.sync` is not one: it returns the
+    // computation's own `Future` when that is one.
     return target.isFactory &&
         _isCore(target, 'dart:async', 'Future') &&
-        const {'', 'delayed', 'value', 'sync', 'microtask'}.contains(
+        const {'', 'delayed', 'value', 'microtask'}.contains(
           target.name.text,
         );
   }

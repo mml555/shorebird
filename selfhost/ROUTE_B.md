@@ -626,9 +626,11 @@ old-cell gate leaves `_Future` out only because it asks about the hazard alone.
 `ignore()` and the other chains above) whose operand is provably a `_Future` is reported
 with `receiverClass` `_Future` instead of the plain `Future.then`. Provable means a
 call resolved statically to an `async` function, static method, extension method or
-`super` method (an `async` body always returns a `_Future`), or one of the `Future`
-constructors that return one: `Future.delayed`, `Future.value`, `Future.sync`,
-`Future.microtask` and `Future()`. Awaiting a `_Future` never calls `then`, so the
+`super` method (an `async` body always returns a `_Future`; not a `super` call in a
+mixin, whose target is the `on` type's member, not what the class runs), or one of the
+`Future` constructors that always build a new one: `Future.delayed`, `Future.value`,
+`Future.microtask` and `Future()`. `Future.sync` is not narrowed: it returns the
+computation's own `Future` when that is one. Awaiting a `_Future` never calls `then`, so the
 entry asks only for what every release has, and a release that allocates a
 `TickerFuture` with no compiled `then` (cut before #291) no longer refuses `await
 fetch()`. Not narrowed: an interface call (`obj.fetch()`, since an override may return
@@ -651,7 +653,8 @@ A cell below 24 cannot see any of this, so the CLI refuses its patches (unless
 `--allow-unchecked-sdk-calls`, or when the release has no readable interface) only when
 the release's snapshot shows the hazard (a `Future` subtype other than `_Future` with
 no compiled `then`); otherwise they are unaffected. The analyzer is in the cell
-(`route_b_analyze.aot`), so analysis 24 (and 25) reaches a release only through a re-cut cell;
+(`route_b_analyze.aot`), so analysis 24 (and 25) reaches a release only through a re-cut
+cell;
 the engine and the rest of the compiler archive do not change.
 
 A cell whose analyzer writes version 24 needs a CLI that knows 24: an older CLI

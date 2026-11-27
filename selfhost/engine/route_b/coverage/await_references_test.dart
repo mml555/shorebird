@@ -112,13 +112,22 @@ Future<void> awaitSyncFn(Ticker t) async { await fetchSync(t); }
 Future<void> awaitVariable(Ticker t) async { final f = fetchAsync(); await f; }
 Future<void> awaitDelayed() async { await Future.delayed(Duration.zero); }
 Future<void> awaitValue() async { await Future.value(1); }
-Future<void> awaitSyncCtor() async { await Future.sync(() => 1); }
 Future<void> awaitMicrotask() async { await Future.microtask(() => 1); }
 Future<void> awaitUnnamedCtor() async { await Future(() => 1); }
 Future<void> awaitMixed(Ticker t) async { await fetchAsync(); await t; }
 Future<void> awaitTearOff() async { final f = fetchAsync; await f(); }
 Future<int> retAsyncFn() async { return fetchAsync(); }
 void completerAsyncFn() { Completer<int>().complete(fetchAsync()); }
+Future<int> syncTicker(Ticker t) => t;
+Future<void> awaitSyncTicker(Ticker t) async { await Future.sync(() => t); }
+Future<void> awaitFutureError() async { await Future<int>.error('x'); }
+Stream<int> genAsyncStar() async* { yield 1; }
+Future<void> awaitAsyncStar() async { await genAsyncStar(); }
+Future<void> awaitValueOfFuture(Ticker t) async { await Future<int>.value(t); }
+abstract class MBase { Future<int> inst() async => 1; }
+mixin MixSuper on MBase {
+  Future<void> viaMixSuper() async { await super.inst(); }
+}
 void main() {}
 ''';
 
@@ -290,6 +299,8 @@ void main() {
     check(exactly('onErr', {'Ticker'}), 'Future.onError() names the receiver');
     check(exactly('tearIgn', {'Ticker'}), 'a tear-off of ignore names it');
     check(exactly('tearErr', {'Ticker'}), 'a tear-off of onError names it');
+    // Requires exactly one `then` entry, so a function with an unrelated
+    // `.then` would fail here.
     bool futureImpl(String n) =>
         then(n).length == 1 &&
         then(n).single['receiverClass'] == '_Future' &&
@@ -302,9 +313,33 @@ void main() {
     check(futureImpl('completerAsyncFn'), 'Completer.complete(async call)');
     check(futureImpl('awaitDelayed'), 'await Future.delayed is a _Future');
     check(futureImpl('awaitValue'), 'await Future.value is a _Future');
-    check(futureImpl('awaitSyncCtor'), 'await Future.sync is a _Future');
     check(futureImpl('awaitMicrotask'), 'await Future.microtask is a _Future');
     check(futureImpl('awaitUnnamedCtor'), 'await Future() is a _Future');
+    check(
+      unnarrowed('awaitSyncTicker'),
+      'await Future.sync(() => ticker) is not a _Future: unnarrowed',
+    );
+    check(
+      unnarrowed('viaMixSuper'),
+      'super call in a mixin names the on type member: unnarrowed',
+    );
+    check(
+      unnarrowed('awaitFutureError'),
+      'await Future.error is not narrowed',
+    );
+    check(
+      !futureImpl('awaitAsyncStar'),
+      'a call of an async* function is not narrowed to _Future',
+    );
+    check(
+      then('awaitValueOfFuture').length == 2 &&
+          then(
+            'awaitValueOfFuture',
+          ).any((e) => e['receiverClass'] == '_Future') &&
+          then('awaitValueOfFuture').any((e) => e['receiverClass'] == 'Ticker'),
+      'await Future.value(ticker): the await is a new _Future (narrowed on '
+      'purpose), the chain of the ticker is its own Ticker entry',
+    );
     check(
       unnarrowed('awaitInstance'),
       'await of an interface call stays unnarrowed: an override may differ',
