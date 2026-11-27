@@ -94,6 +94,47 @@ void ignPlain(Future<int> f) { f.ignore(); }
 void tearIgn(Ticker t) { final f = t.ignore; f(); }
 void tearErr(Ticker t) { final f = t.onError<Object>; f((e, s) => 1); }
 void onErr(Ticker t) { t.onError<Object>((e, s) => 1); }
+Future<int> fetchAsync() async => 1;
+Future<int> fetchSync(Ticker t) => t;
+class Svc {
+  static Future<int> stat() async => 1;
+  Future<int> inst() async => 1;
+}
+class SvcSub extends Svc {
+  Future<void> viaSuper() async { await super.inst(); }
+}
+extension SvcExt on Svc { Future<int> ext() async => 1; }
+Future<void> awaitAsyncFn() async { await fetchAsync(); }
+Future<void> awaitStatic() async { await Svc.stat(); }
+Future<void> awaitExt(Svc s) async { await s.ext(); }
+Future<void> awaitInstance(Svc s) async { await s.inst(); }
+Future<void> awaitSyncFn(Ticker t) async { await fetchSync(t); }
+Future<void> awaitVariable(Ticker t) async { final f = fetchAsync(); await f; }
+Future<void> awaitDelayed() async { await Future.delayed(Duration.zero); }
+Future<void> awaitValue() async { await Future.value(1); }
+Future<void> awaitMicrotask() async { await Future.microtask(() => 1); }
+Future<void> awaitUnnamedCtor() async { await Future(() => 1); }
+Future<void> awaitDelayedTicker(Ticker t) async {
+  await Future.delayed(Duration.zero, () => t);
+}
+Future<void> awaitMicrotaskTicker(Ticker t) async {
+  await Future.microtask(() => t);
+}
+void explicitThen() { fetchAsync().then((_) {}); }
+Future<void> awaitMixed(Ticker t) async { await fetchAsync(); await t; }
+Future<void> awaitTearOff() async { final f = fetchAsync; await f(); }
+Future<int> retAsyncFn() async { return fetchAsync(); }
+void completerAsyncFn() { Completer<int>().complete(fetchAsync()); }
+Future<int> syncTicker(Ticker t) => t;
+Future<void> awaitSyncTicker(Ticker t) async { await Future.sync(() => t); }
+Future<void> awaitFutureError() async { await Future<int>.error('x'); }
+Stream<int> genAsyncStar() async* { yield 1; }
+Future<void> awaitAsyncStar() async { await genAsyncStar(); }
+Future<void> awaitValueOfFuture(Ticker t) async { await Future<int>.value(t); }
+abstract class MBase { Future<int> inst() async => 1; }
+mixin MixSuper on MBase {
+  Future<void> viaMixSuper() async { await super.inst(); }
+}
 void main() {}
 ''';
 
@@ -177,7 +218,7 @@ void main() {
     final core = CoreTypes(c);
     final env = TypeEnvironment(core, ClassHierarchy(c, core));
 
-    check(analysisVersion == 24, 'analysis version is 24');
+    check(analysisVersion == 25, 'analysis version is 25');
 
     List<Map<String, Object?>> then(String n) =>
         _then(c, env, n, world: FutureWorld(env));
@@ -265,6 +306,83 @@ void main() {
     check(exactly('onErr', {'Ticker'}), 'Future.onError() names the receiver');
     check(exactly('tearIgn', {'Ticker'}), 'a tear-off of ignore names it');
     check(exactly('tearErr', {'Ticker'}), 'a tear-off of onError names it');
+    // Requires exactly one `then` entry, so a function with an unrelated
+    // `.then` would fail here.
+    bool futureImpl(String n) =>
+        then(n).length == 1 &&
+        then(n).single['receiverClass'] == '_Future' &&
+        then(n).single['receiverLibrary'] == 'dart:async';
+    check(futureImpl('awaitAsyncFn'), 'await of an async function: _Future');
+    check(futureImpl('awaitStatic'), 'await of an async static method');
+    check(futureImpl('awaitExt'), 'await of an async extension method');
+    check(futureImpl('viaSuper'), 'await of an async super method call');
+    check(futureImpl('retAsyncFn'), 'return of an async function call');
+    check(futureImpl('completerAsyncFn'), 'Completer.complete(async call)');
+    check(futureImpl('awaitDelayed'), 'await Future.delayed is a _Future');
+    check(futureImpl('awaitValue'), 'await Future.value is a _Future');
+    // A computation's result is chained into the `_Future`, and may be a
+    // `TickerFuture`: not narrowed.
+    check(
+      unnarrowed('awaitMicrotask'),
+      'await Future.microtask(computation) is unnarrowed',
+    );
+    check(
+      unnarrowed('awaitUnnamedCtor'),
+      'await Future(computation) is unnarrowed',
+    );
+    check(
+      unnarrowed('awaitDelayedTicker'),
+      'await Future.delayed(d, () => ticker) is unnarrowed',
+    );
+    check(
+      unnarrowed('awaitMicrotaskTicker'),
+      'await Future.microtask(() => ticker) is unnarrowed',
+    );
+    check(
+      unnarrowed('explicitThen'),
+      'an explicit .then on an async call never carries a receiver',
+    );
+    check(
+      unnarrowed('awaitSyncTicker'),
+      'await Future.sync(() => ticker) is not a _Future: unnarrowed',
+    );
+    check(
+      unnarrowed('viaMixSuper'),
+      'super call in a mixin names the on type member: unnarrowed',
+    );
+    check(
+      unnarrowed('awaitFutureError'),
+      'await Future.error is not narrowed',
+    );
+    check(
+      !futureImpl('awaitAsyncStar'),
+      'a call of an async* function is not narrowed to _Future',
+    );
+    check(
+      then('awaitValueOfFuture').length == 2 &&
+          then(
+            'awaitValueOfFuture',
+          ).any((e) => e['receiverClass'] == '_Future') &&
+          then('awaitValueOfFuture').any((e) => e['receiverClass'] == 'Ticker'),
+      'await Future.value(ticker): the await is a new _Future (narrowed on '
+      'purpose), the chain of the ticker is its own Ticker entry',
+    );
+    check(
+      unnarrowed('awaitInstance'),
+      'await of an interface call stays unnarrowed: an override may differ',
+    );
+    check(
+      unnarrowed('awaitSyncFn'),
+      'await of a non-async function returning Future stays unnarrowed',
+    );
+    check(unnarrowed('awaitVariable'), 'await of a variable stays unnarrowed');
+    check(unnarrowed('awaitTearOff'), 'await of a tear-off call is unnarrowed');
+    check(
+      then('awaitMixed').length == 2 &&
+          then('awaitMixed').any((e) => e['receiverClass'] == '_Future') &&
+          then('awaitMixed').any((e) => e['receiverClass'] == 'Ticker'),
+      'one provable await and one Ticker await report both',
+    );
     check(
       _then(c, env, 'iface').length == 1 &&
           !_then(c, env, 'iface').single.containsKey('receiverClass'),

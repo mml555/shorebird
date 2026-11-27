@@ -650,7 +650,7 @@ void main() {
       'a lowered for-in over $what names no receiver ($refs)',
     );
   }
-  check(analysisVersion == 24, 'analysis version is 24');
+  check(analysisVersion == 25, 'analysis version is 25');
 
   if (_failures > 0) exit(1);
   stdout.writeln('all passed');

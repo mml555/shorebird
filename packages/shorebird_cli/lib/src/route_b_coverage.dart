@@ -70,7 +70,7 @@ const supportedRouteBAnalysisVersion = 11;
 /// Each version's absent fields keep their own meaning; see
 /// [RouteBLowering.privateConstructions] for the asymmetry that matters.
 const knownRouteBAnalysisVersions = {
-  11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, //
+  11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, //
 };
 
 /// The first analyzer version that compares fields, `const`s, constructors and
@@ -144,6 +144,15 @@ const routeBForInReceiverAnalysisVersion = 23;
 /// refuses its patches unless the developer opts out; see
 /// `RouteBRetention.awaitUnchecked`.
 const routeBAwaitAnalysisVersion = 24;
+
+/// The first analyzer version that marks an `await` (or `return`) of a
+/// provable `_Future` (a call of a statically resolved `async` function, or
+/// `Future.value`, or `Future.delayed` with no computation): its
+/// `Future.then` entry carries `receiverLibrary` `dart:async` and
+/// `receiverClass` `_Future`. The VM chains a `_Future` without calling
+/// `then`, so the kept check lets that entry through. A document below it
+/// never has the marking, and one that carries it anyway is not believed.
+const routeBProvableFutureAnalysisVersion = 25;
 
 /// A construction of a private class inside a replaced body.
 ///
@@ -704,12 +713,15 @@ class RouteBExternalReference {
   /// [readInlined] is true only for a document of analysis
   /// [routeBInlinedOpsAnalysisVersion] or later: an `inlined` field on an
   /// older one is ignored, so only an analyzer that computes it can say it.
-  /// [readReceiver] is the same for [receiverClass], from
-  /// [routeBForInReceiverAnalysisVersion].
+  /// [readReceiver] is the same for [receiverClass] on a `for-in`, from
+  /// [routeBForInReceiverAnalysisVersion], and [readFutureReceiver] for the
+  /// `_Future` receiver of an `await`, from
+  /// [routeBProvableFutureAnalysisVersion].
   factory RouteBExternalReference.fromJson(
     Map<String, dynamic> json, {
     bool readInlined = false,
     bool readReceiver = false,
+    bool readFutureReceiver = false,
   }) {
     final kind = json['kind'];
     if (kind is! String || !_kinds.contains(kind)) {
@@ -725,7 +737,11 @@ class RouteBExternalReference {
     if (library is! String) {
       throw const FormatException('an external reference names no library');
     }
-    final receiver = readReceiver ? _knownReceiver(json) : null;
+    final receiver = _knownReceiver(
+      json,
+      forIn: readReceiver,
+      future: readFutureReceiver,
+    );
     return RouteBExternalReference(
       kind: kind,
       library: library,
@@ -746,22 +762,37 @@ class RouteBExternalReference {
     );
   }
 
-  /// The receiver class a document names for a `for-in`'s
-  /// `Iterable.get:iterator`, the only reference the analyzer gives one, or
-  /// null. A receiver on any other reference is not believed: it would narrow
-  /// the check for a member the analyzer never narrowed.
-  static (String, String)? _knownReceiver(Map<String, dynamic> json) {
+  /// The receiver class a document names, or null. Two references carry one:
+  /// a `for-in`'s `Iterable.get:iterator` ([forIn], any class), and an
+  /// `await` of a provable `_Future` ([future], `Future.then` on exactly
+  /// `dart:async` `_Future`). A receiver on any other reference, or any other
+  /// receiver on `Future.then`, is not believed: it would narrow the check
+  /// for a member the analyzer never narrowed.
+  static (String, String)? _knownReceiver(
+    Map<String, dynamic> json, {
+    required bool forIn,
+    required bool future,
+  }) {
     final library = json['receiverLibrary'];
     final cls = json['receiverClass'];
     if (library is! String || cls is! String) return null;
     if (library.isEmpty || cls.isEmpty) return null;
-    if (json['kind'] != 'instance' ||
-        json['library'] != 'dart:core' ||
-        json['class'] != 'Iterable' ||
-        json['member'] != 'get:iterator') {
-      return null;
+    if (json['kind'] != 'instance') return null;
+    if (forIn &&
+        json['library'] == 'dart:core' &&
+        json['class'] == 'Iterable' &&
+        json['member'] == 'get:iterator') {
+      return (library, cls);
     }
-    return (library, cls);
+    if (future &&
+        json['library'] == 'dart:async' &&
+        json['class'] == 'Future' &&
+        json['member'] == 'then' &&
+        library == 'dart:async' &&
+        cls == '_Future') {
+      return (library, cls);
+    }
+    return null;
   }
 
   /// The opcodes the bytecode compiler can emit for an operator, by selector
@@ -1172,6 +1203,8 @@ class RouteBCoverage {
                 readInlined: analysisVersion >= routeBInlinedOpsAnalysisVersion,
                 readReceiver:
                     analysisVersion >= routeBForInReceiverAnalysisVersion,
+                readFutureReceiver:
+                    analysisVersion >= routeBProvableFutureAnalysisVersion,
               ),
           ],
       };

@@ -336,6 +336,9 @@ class RouteBRetention {
       // member is looked up, so neither the device list nor the snapshot is
       // asked. Only the analyzer's own per-site answer lifts the check.
       if (r.inlined != null && (inlinedHolds?.call(r) ?? true)) return null;
+      // An `await` or `return` of a provable `_Future` (analysis 25): the VM
+      // chains a `_Future` without calling `then`, so nothing is looked up.
+      if (_isAwaitOfFutureImpl(r)) return null;
       final why = _sdkRefusal(_sdkKey(r), receiver: _receiverOf(r));
       return why == null ? null : _describeSdkInstance(r, why);
     }
@@ -432,6 +435,18 @@ class RouteBRetention {
     'dart:async#Future#whenComplete',
     'dart:async#Future#timeout',
   };
+
+  /// Whether [r] is the `Future.then` the analyzer reports for an `await`,
+  /// `return` or SDK chain (`Completer.complete`, ...) of a provable `_Future`.
+  /// Only those implicit calls of `then` carry a receiver on `Future.then`;
+  /// an explicit `.then` never does. `RouteBExternalReference.fromJson` keeps
+  /// a `_Future` one only from analysis 25.
+  static bool _isAwaitOfFutureImpl(RouteBExternalReference r) =>
+      r.library == 'dart:async' &&
+      r.className == 'Future' &&
+      r.member == 'then' &&
+      r.receiverLibrary == 'dart:async' &&
+      r.receiverClass == '_Future';
 
   static (String, String)? _receiverOf(RouteBExternalReference r) {
     final library = r.receiverLibrary;
