@@ -50,6 +50,8 @@ PROTECTED_CELLS = [
     '97f91aff85e1db8b724afb51ff0e91466b78764c',   # minted cell over 64abe347's bytes (Flutter 3.50, Route B iOS)
     '88a7bf8cdb2ad206eb91a2275d77a4304c23f98d',   # engine 88a7bf8c (Flutter 3.50, Dart a42323e3, built on Shorebird flutter_release/3.50.0)
     '83198f598d638fb2b5848f64bb377f504185a3da',   # minted cell over 88a7bf8c's bytes (Flutter 3.50, Route B iOS)
+    '93adf4fb25a26fe25e07bf953af33c0a48c435f2',   # engine 93adf4fb (Flutter 3.50, Dart e3f6fa90, built on Shorebird flutter_release/3.50.0)
+    'c920825972cdc7e096fa114bbb616b306914c4c7',   # minted cell over 93adf4fb's bytes (Flutter 3.50, Route B iOS)
 ]
 # Hashes that publish OUR linux-x64 host toolchain, so linux-x64/font-subset.zip
 # (it carries our const_finder) is owned for them and for no other hash.
@@ -77,6 +79,8 @@ LINUX_FONT_CELLS = [
     '97f91aff85e1db8b724afb51ff0e91466b78764c',   # minted cell over 64abe347's bytes (Flutter 3.50, Route B iOS)
     '88a7bf8cdb2ad206eb91a2275d77a4304c23f98d',   # engine 88a7bf8c (Flutter 3.50, Dart a42323e3, built on Shorebird flutter_release/3.50.0)
     '83198f598d638fb2b5848f64bb377f504185a3da',   # minted cell over 88a7bf8c's bytes (Flutter 3.50, Route B iOS)
+    '93adf4fb25a26fe25e07bf953af33c0a48c435f2',   # engine 93adf4fb (Flutter 3.50, Dart e3f6fa90, built on Shorebird flutter_release/3.50.0)
+    'c920825972cdc7e096fa114bbb616b306914c4c7',   # minted cell over 93adf4fb's bytes (Flutter 3.50, Route B iOS)
 ]
 # Hashes that publish OUR darwin-x64 host toolchain.
 DARWIN_X64_FONT_CELLS = [
@@ -102,6 +106,8 @@ DARWIN_X64_FONT_CELLS = [
     '97f91aff85e1db8b724afb51ff0e91466b78764c',   # minted cell over 64abe347's bytes (Flutter 3.50, Route B iOS)
     '88a7bf8cdb2ad206eb91a2275d77a4304c23f98d',   # engine 88a7bf8c (Flutter 3.50, Dart a42323e3, built on Shorebird flutter_release/3.50.0)
     '83198f598d638fb2b5848f64bb377f504185a3da',   # minted cell over 88a7bf8c's bytes (Flutter 3.50, Route B iOS)
+    '93adf4fb25a26fe25e07bf953af33c0a48c435f2',   # engine 93adf4fb (Flutter 3.50, Dart e3f6fa90, built on Shorebird flutter_release/3.50.0)
+    'c920825972cdc7e096fa114bbb616b306914c4c7',   # minted cell over 93adf4fb's bytes (Flutter 3.50, Route B iOS)
 ]
 # Cells whose sky/gpu packages are protected but whose iOS modes are not.
 SKY_ONLY_CELLS = [
