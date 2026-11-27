@@ -1,226 +1,18 @@
---------- beginning of main
-11-26 21:10:15.264  3548  3548 E t.untab.android: Unknown bits set in runtime_flags: 0x40000000
-11-26 21:10:15.264  3548  3548 I t.untab.android: Using generational CollectorTypeCMC GC.
-11-26 21:10:15.269  3548  3548 D nativeloader: Load libframework-connectivity-tiramisu-jni.so using APEX ns com_android_tethering for caller /apex/com.android.tethering/javalib/framework-connectivity-t.jar: ok
-11-26 21:10:15.271  3548  3548 D OplusActivityThreadExtImpl: java.lang.NoSuchMethodException: dalvik.system.VMRuntime.SupressionGC [int, int]
-11-26 21:10:15.271  3548  3548 W libc    : Access denied finding property "persist.vendor.sys.activitylog"
-11-26 21:10:15.271  3548  3548 I OneTrace: Mark active for pid=3548? true
-11-26 21:10:15.271  3548  3548 D cutils-dev: otrace_set_tracing_enabled? true tag:0
-11-26 21:10:15.271  3548  3583 D cutils-dev: properties changed in otrace_seq_number_changed!
-11-26 21:10:15.279  3548  3583 D OplusActivityManager: get AMS extension: android.os.BinderProxy@e22397f
-11-26 21:10:15.279  3548  3583 D OplusAppHeapManager: java.lang.NoSuchMethodException: dalvik.system.VMRuntime.updateProcessValue [int, int, int]
-11-26 21:10:15.280  3548  3583 D SurfaceSyncGroup: preCreateSurfaceSyncGroupTimerThread
-11-26 21:10:15.282  3548  3548 D CompactWindowAppManager: initCompactApplicationInfo CompactMode: , NormalMode: 
---------- beginning of system
-11-26 21:10:15.283  3548  3548 V Configuration: Updating configuration, locales updated from [] to [en_US]
-11-26 21:10:15.284  3548  3548 D OplusScrollToTopManager: setIsInWhiteList false
-11-26 21:10:15.284  3548  3548 D OplusViewDebugManager: OplusViewDebugManager Constructor android.view.debug.OplusViewDebugManager@6da1195 [mHasViewDebugProperty true] [mHasMsgDebugProperty false] [DEBUG false] [EXTRAINFOENABLE false] [LIGHT_OS false]
-11-26 21:10:15.288  3548  3548 W libc    : Access denied finding property "ro.odm.prev.product.name"
-11-26 21:10:15.289  3548  3548 D ApplicationLoaders: Returning zygote-cached class loader: /system_ext/framework/androidx.window.extensions.jar
-11-26 21:10:15.289  3548  3548 D ApplicationLoaders: Returning zygote-cached class loader: /system_ext/framework/androidx.window.sidecar.jar
-11-26 21:10:15.290  3548  3548 D nativeloader: Configuring clns-9 for other apk /data/app/~~-XMV0bPJAIL0cjoxvNDXog==/dev.selfhost.untab.android-P0C9vRWa70RnsY5VJ6As3A==/base.apk. target_sdk_version=36, uses_libraries=, library_path=/data/app/~~-XMV0bPJAIL0cjoxvNDXog==/dev.selfhost.untab.android-P0C9vRWa70RnsY5VJ6As3A==/lib/arm64:/data/app/~~-XMV0bPJAIL0cjoxvNDXog==/dev.selfhost.untab.android-P0C9vRWa70RnsY5VJ6As3A==/base.apk!/lib/arm64-v8a, permitted_path=/data:/mnt/expand:/data/user/0/dev.selfhost.untab.android
-11-26 21:10:15.291  3548  3548 I t.untab.android: AssetManager2(0xb400007d257f5a28) locale list changing from [] to [en-US]
-11-26 21:10:15.293  3548  3548 V GraphicsEnvironment: Currently set values for:
-11-26 21:10:15.293  3548  3548 V GraphicsEnvironment:   angle_gl_driver_selection_pkgs=[]
-11-26 21:10:15.293  3548  3548 V GraphicsEnvironment:   angle_gl_driver_selection_values=[]
-11-26 21:10:15.293  3548  3548 V GraphicsEnvironment: dev.selfhost.untab.android is not listed in per-application setting
-11-26 21:10:15.293  3548  3548 V GraphicsEnvironment: ANGLE allowlist from config: 
-11-26 21:10:15.293  3548  3548 V GraphicsEnvironment: dev.selfhost.untab.android is not listed in ANGLE allowlist or settings, returning default
-11-26 21:10:15.293  3548  3548 V GraphicsEnvironment: Updatable production driver is not supported on the device.
-11-26 21:10:15.294  3548  3548 D ResourcesManagerExtImpl: applyConfigurationToAppResourcesLocked app.getDisplayId() return callback.displayId:-1
-11-26 21:10:15.296  3548  3548 D OplusGraphicsEvent: OplusGraphicsEventListener create now!
-11-26 21:10:15.296  3548  3548 D OplusGraphicsEvent: addEventListener success!
-11-26 21:10:15.297  3548  3548 E [UAH_CLIENT]: uahInit enter
-11-26 21:10:15.297  3548  3548 W t.untab.android: AIBinder_linkToDeath is being called with a non-null cookie and no onUnlink callback set. This might not be intended. AIBinder_DeathRecipient_setOnUnlinked should be called first.
-11-26 21:10:15.298  3548  3548 I [UAH_CLIENT]: UahGetFeatureStatus enter
-11-26 21:10:15.300  3548  3548 I HWUI    : SupportApps size 0
-11-26 21:10:15.300  3548  3548 D ExtensionsLoader: createInstance(64bit) : createExtendedFactory
-11-26 21:10:15.300  3548  3548 D ExtensionsLoader: Opened libSchedAssistExtImpl.so
-11-26 21:10:15.300  3548  3548 E SchedAssist: open sharedFd failed with error=Permission denied
-11-26 21:10:15.300  3548  3548 E SchedAssist: open sharedFd failed with error=Permission denied
-11-26 21:10:15.300  3548  3548 E SchedAssist: open sharedFd failed with error=Permission denied
-11-26 21:10:15.301  3548  3592 D ExtensionsLoader: createInstance(64bit) : createExtendedFactory
-11-26 21:10:15.301  3548  3592 D ExtensionsLoader: Opened libSchedAssistExtImpl.so
-11-26 21:10:15.301  3548  3592 I DisplayManager: Choreographer implicitly registered for the refresh rate.
-11-26 21:10:15.302  3548  3548 I t.untab.android: AssetManager2(0xb400007d257f5d28) locale list changing from [] to [en-US]
-11-26 21:10:15.302  3548  3548 D ResourcesManagerExtImpl: applyConfigurationToAppResourcesLocked app.getDisplayId() return callback.displayId:0
-11-26 21:10:15.302  3548  3592 I AdrenoGLES-0: QUALCOMM build                   : bad34dcf83, I1064ae0a1f
-11-26 21:10:15.302  3548  3592 I AdrenoGLES-0: Build Date                       : 11/28/25
-11-26 21:10:15.302  3548  3592 I AdrenoGLES-0: OpenGL ES Shader Compiler Version: E031.41.03.64
-11-26 21:10:15.302  3548  3592 I AdrenoGLES-0: Local Branch                     : 
-11-26 21:10:15.302  3548  3592 I AdrenoGLES-0: Remote Branch                    : refs/tags/AU_LINUX_ANDROID_LA.VENDOR.13.2.0.11.00.00.856.062
-11-26 21:10:15.302  3548  3592 I AdrenoGLES-0: Remote Branch                    : NONE
-11-26 21:10:15.302  3548  3592 I AdrenoGLES-0: Reconstruct Branch               : NOTHING
-11-26 21:10:15.302  3548  3592 I AdrenoGLES-0: Build Config                     : S P 14.1.4 AArch64
-11-26 21:10:15.302  3548  3592 I AdrenoGLES-0: Driver Path                      : /vendor/lib64/egl/libGLESv2_adreno.so
-11-26 21:10:15.302  3548  3592 I AdrenoGLES-0: Driver Version                   : 0676.76.1
-11-26 21:10:15.304  3548  3548 E ashmem  : Pinning is deprecated since Android Q. Please use trim or other methods.
-11-26 21:10:15.305  3548  3592 I AdrenoGLES-0: PFP: 0x01740181, ME: 0x00000000
-11-26 21:10:15.306  3548  3548 E OplusPredictiveBackController:  NoSuchMethodException 
-11-26 21:10:15.306  3548  3548 D OplusPredictiveBackController: should not HookOnBackInvokedCallbackEnabled for application dev.selfhost.untab.MainActivity@e8cb17c sdk: 36
-11-26 21:10:15.306  3548  3548 D OplusPredictiveBackController: initPredictiveBackConfig for dev.selfhost.untab.MainActivity@e8cb17c initPredictiveBackConfig mShouldInterceptKeyEvent false
-11-26 21:10:15.306  3548  3548 D OplusPredictiveBackController: should not HookOnBackInvokedCallbackEnabled for application dev.selfhost.untab.MainActivity@e8cb17c sdk: 36
-11-26 21:10:15.306  3548  3548 D WindowOnBackDispatcher:  predictive settings is disabled for dev.selfhost.untab.android
-11-26 21:10:15.309  3548  3592 I AdrenoUtils: <ReadGpuID:407>: Reading chip ID through GSL
-11-26 21:10:15.313  3548  3596 D nativeloader: Load /data/app/~~-XMV0bPJAIL0cjoxvNDXog==/dev.selfhost.untab.android-P0C9vRWa70RnsY5VJ6As3A==/base.apk!/lib/arm64-v8a/libflutter.so using class loader ns clns-9 (caller=/data/app/~~-XMV0bPJAIL0cjoxvNDXog==/dev.selfhost.untab.android-P0C9vRWa70RnsY5VJ6As3A==/base.apk): ok
-11-26 21:10:15.314  3548  3592 D ExtensionsLoader: createInstance(64bit) : createExtendedFactory
-11-26 21:10:15.314  3548  3592 D ExtensionsLoader: Opened libeglextimpl.so
-11-26 21:10:15.315  3548  3592 D PreCache: [IPreCacheRus]loadRUSConfigs#102 failed to transact: -22 prc:dev.selfhost.untab.android
 11-26 21:10:15.315  3548  3548 I flutter : [INFO:flutter/shell/common/shorebird/shorebird.cc(670)] Checking for active patch
 11-26 21:10:15.315  3548  3548 I flutter : [INFO:flutter/shell/common/shorebird/shorebird.cc(686)] Shorebird updater: patch path: /data/user/0/dev.selfhost.untab.android/files/shorebird_updater/patches/2/dlc.vmcode
-11-26 21:10:15.311  3548  3548 W t.untab.android: type=1400 audit(0.0:14109): avc:  granted  { execute } for  path="/data/data/dev.selfhost.untab.android/files/shorebird_updater/patches/2/dlc.vmcode" dev="dm-75" ino=620921 scontext=u:r:untrusted_app:s0:c108,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c108,c257,c512,c768 tclass=file app=dev.selfhost.untab.android
-11-26 21:10:15.317  3548  3597 D skia    : [SkFontMgr Android Parser] '/product/etc/fonts_customization.xml' could not be opened
-11-26 21:10:15.318  3548  3548 I t.untab.android: AssetManager2(0xb400007cd88d3628) locale list changing from [] to [en-US]
 11-26 21:10:15.320  3548  3548 I flutter : updater::updater: [shorebird] Reporting launch start.
-11-26 21:10:15.315  3548  3548 W t.untab.android: type=1400 audit(0.0:14110): avc:  granted  { execute } for  path="/data/data/dev.selfhost.untab.android/files/shorebird_updater/patches/2/dlc.vmcode" dev="dm-75" ino=620921 scontext=u:r:untrusted_app:s0:c108,c257,c512,c768 tcontext=u:object_r:app_data_file:s0:c108,c257,c512,c768 tclass=file app=dev.selfhost.untab.android
 11-26 21:10:15.323  3548  3548 I flutter : updater::updater: [shorebird] Reporting launch paused.
-11-26 21:10:15.324  3548  3548 D DesktopModeFlags: Toggle override initialized to: OVERRIDE_UNSET
 11-26 21:10:15.326  3548  3548 I flutter : updater::updater: [shorebird] Reporting launch resumed.
-11-26 21:10:15.329  3548  3600 D colorx  : VulkanExtImpl Init
-11-26 21:10:15.330  3548  3600 D vulkan  : searching for layers in '/data/app/~~-XMV0bPJAIL0cjoxvNDXog==/dev.selfhost.untab.android-P0C9vRWa70RnsY5VJ6As3A==/lib/arm64'
-11-26 21:10:15.330  3548  3600 D vulkan  : searching for layers in '/data/app/~~-XMV0bPJAIL0cjoxvNDXog==/dev.selfhost.untab.android-P0C9vRWa70RnsY5VJ6As3A==/base.apk!/lib/arm64-v8a'
-11-26 21:10:15.330  3548  3600 D colorx  : I can't find colorx layer , let's enumerate colorx layers first.
-11-26 21:10:15.335  3548  3600 I AdrenoVK-0: ===== BEGIN DUMP OF OVERRIDDEN SETTINGS =====
-11-26 21:10:15.335  3548  3600 I AdrenoVK-0: ===== END DUMP OF OVERRIDDEN SETTINGS =====
-11-26 21:10:15.336  3548  3600 I AdrenoVK-0: QUALCOMM build          : bad34dcf83, I1064ae0a1f
-11-26 21:10:15.336  3548  3600 I AdrenoVK-0: Build Date              : 11/28/25
-11-26 21:10:15.336  3548  3600 I AdrenoVK-0: Shader Compiler Version : E031.41.03.64
-11-26 21:10:15.336  3548  3600 I AdrenoVK-0: Local Branch            : 
-11-26 21:10:15.336  3548  3600 I AdrenoVK-0: Remote Branch           : refs/tags/AU_LINUX_ANDROID_LA.VENDOR.13.2.0.11.00.00.856.062
-11-26 21:10:15.336  3548  3600 I AdrenoVK-0: Remote Branch           : NONE
-11-26 21:10:15.336  3548  3600 I AdrenoVK-0: Reconstruct Branch      : NOTHING
-11-26 21:10:15.336  3548  3600 I AdrenoVK-0: Build Config            : S P 14.1.4 AArch64
-11-26 21:10:15.336  3548  3600 I AdrenoVK-0: Driver Path             : /vendor/lib64/hw/vulkan.adreno.so
-11-26 21:10:15.336  3548  3600 I AdrenoVK-0: Driver Version          : 0676.76.1
-11-26 21:10:15.336  3548  3600 I AdrenoVK-0: PFP                     : 0x01740181
-11-26 21:10:15.336  3548  3600 I AdrenoVK-0: ME                      : 0x00000000
-11-26 21:10:15.336  3548  3600 I AdrenoVK-0: Application Name    : Impeller
-11-26 21:10:15.336  3548  3600 I AdrenoVK-0: Application Version : 0x00400000
-11-26 21:10:15.336  3548  3600 I AdrenoVK-0: Engine Name         : Impeller
-11-26 21:10:15.336  3548  3600 I AdrenoVK-0: Engine Version      : 0x00800000
-11-26 21:10:15.336  3548  3600 I AdrenoVK-0: Api Version         : 0x00401000
 11-26 21:10:15.336  3548  3548 I flutter : updater::updater: [shorebird] Reporting successful launch.
-11-26 21:10:15.336  3548  3600 I AdrenoVK-0: Unknown struct with type 0x3b9ff250 provided to vkGetPhysicalDeviceFeatures2
-11-26 21:10:15.336  3548  3600 I AdrenoVK-0: Unknown struct with type 0x3ba17508 provided to vkGetPhysicalDeviceFeatures2
-11-26 21:10:15.336  3548  3600 I AdrenoVK-0: Unknown struct with type 0x3b9ff250 provided to vkGetPhysicalDeviceFeatures2
-11-26 21:10:15.336  3548  3600 I AdrenoVK-0: Unknown struct with type 0x3ba17508 provided to vkGetPhysicalDeviceFeatures2
-11-26 21:10:15.336  3548  3600 I AdrenoVK-0: Unknown struct with type 0x3b9ff250 provided to vkGetPhysicalDeviceFeatures2
-11-26 21:10:15.336  3548  3600 I AdrenoVK-0: Unknown struct with type 0x3ba17508 provided to vkGetPhysicalDeviceFeatures2
-11-26 21:10:15.336  3548  3600 I AdrenoVK-0: Unknown struct with type 0x3b9ff250 provided to vkGetPhysicalDeviceFeatures2
-11-26 21:10:15.336  3548  3600 I AdrenoVK-0: Unknown struct with type 0x3ba17508 provided to vkGetPhysicalDeviceFeatures2
-11-26 21:10:15.337  3548  3600 I AdrenoVK-0: Unknown struct with type 0x3b9ff250 provided to vkGetPhysicalDeviceFeatures2
-11-26 21:10:15.337  3548  3600 I AdrenoVK-0: Unknown struct with type 0x3ba17508 provided to vkGetPhysicalDeviceFeatures2
-11-26 21:10:15.337  3548  3600 I AdrenoVK-0: Unknown struct with type 0x3b9ff250 provided to vkGetPhysicalDeviceFeatures2
-11-26 21:10:15.337  3548  3600 I AdrenoVK-0: Unknown struct with type 0x3ba17508 provided to vkGetPhysicalDeviceFeatures2
-11-26 21:10:15.337  3548  3600 I AdrenoVK-0: Unknown struct with type 0x3b9ff250 provided to vkGetPhysicalDeviceFeatures2
-11-26 21:10:15.337  3548  3600 I AdrenoVK-0: Unknown struct with type 0x3ba17508 provided to vkGetPhysicalDeviceFeatures2
-11-26 21:10:15.337  3548  3600 I AdrenoVK-0: Unknown struct with type 0x3b9ff250 provided to vkGetPhysicalDeviceFeatures2
-11-26 21:10:15.337  3548  3600 I AdrenoVK-0: Unknown struct with type 0x3ba17508 provided to vkGetPhysicalDeviceFeatures2
-11-26 21:10:15.337  3548  3600 I AdrenoVK-0: Unknown struct with type 0x3b9ff250 provided to vkGetPhysicalDeviceFeatures2
-11-26 21:10:15.337  3548  3600 I AdrenoVK-0: Unknown struct with type 0x3ba17508 provided to vkGetPhysicalDeviceFeatures2
-11-26 21:10:15.337  3548  3600 I AdrenoVK-0: Unknown struct with type 0x3b9ff250 provided to vkGetPhysicalDeviceFeatures2
 11-26 21:10:15.337  3548  3548 I flutter : updater::updater: [shorebird] Launch success for patch 2: prior_ambiguous_attempts=0 (recovery event suppressed: no prior ambiguity)
-11-26 21:10:15.337  3548  3600 I AdrenoVK-0: Unknown struct with type 0x3ba17508 provided to vkGetPhysicalDeviceFeatures2
-11-26 21:10:15.337  3548  3600 I AdrenoVK-0: Unknown struct with type 0x3b9ff250 provided to vkGetPhysicalDeviceFeatures2
-11-26 21:10:15.337  3548  3600 I AdrenoVK-0: Unknown struct with type 0x3ba17508 provided to vkGetPhysicalDeviceFeatures2
-11-26 21:10:15.337  3548  3600 I AdrenoVK-0: Unknown struct with type 0x3b9ff250 provided to vkGetPhysicalDeviceFeatures2
-11-26 21:10:15.337  3548  3600 I AdrenoVK-0: Unknown struct with type 0x3ba17508 provided to vkGetPhysicalDeviceFeatures2
-11-26 21:10:15.337  3548  3600 I AdrenoVK-0: Unknown struct with type 0x3b9ff250 provided to vkGetPhysicalDeviceFeatures2
-11-26 21:10:15.337  3548  3600 I AdrenoVK-0: Unknown struct with type 0x3ba17508 provided to vkGetPhysicalDeviceFeatures2
-11-26 21:10:15.337  3548  3600 I AdrenoVK-0: Unknown struct with type 0x3b9ff250 provided to vkGetPhysicalDeviceFeatures2
-11-26 21:10:15.337  3548  3600 I AdrenoVK-0: Unknown struct with type 0x3ba17508 provided to vkGetPhysicalDeviceFeatures2
-11-26 21:10:15.337  3548  3600 I AdrenoVK-0: Unknown struct with type 0x3b9ff250 provided to vkGetPhysicalDeviceFeatures2
-11-26 21:10:15.337  3548  3600 I AdrenoVK-0: Unknown struct with type 0x3ba17508 provided to vkGetPhysicalDeviceFeatures2
-11-26 21:10:15.337  3548  3600 I AdrenoVK-0: Unknown struct with type 0x3b9ff250 provided to vkGetPhysicalDeviceFeatures2
 11-26 21:10:15.337  3548  3605 I flutter : updater::network: [shorebird] Sending patch check request: app_id: 7b5a01f3-8c40-0e01-ac03-5fd3b107e0ff, channel: stable, release_version: 1.0.0+1, host_bundle_id: dev.selfhost.untab.android, platform: android, arch: aarch64, current_patch_number: Some(2)
-11-26 21:10:15.337  3548  3600 I AdrenoVK-0: Unknown struct with type 0x3ba17508 provided to vkGetPhysicalDeviceFeatures2
-11-26 21:10:15.337  3548  3548 I oplus.android.OplusFrameworkFactoryImpl: Unknow feature:IOplusTextViewRTLUtilForUG
-11-26 21:10:15.338  3548  3600 I AdrenoVK-0: Unknown struct with type 0x3b9ff250 provided to vkGetPhysicalDeviceFeatures2
-11-26 21:10:15.338  3548  3600 I AdrenoVK-0: Unknown struct with type 0x3ba17508 provided to vkGetPhysicalDeviceFeatures2
-11-26 21:10:15.338  3548  3600 I AdrenoVK-0: Unknown struct with type 0x3b9ff250 provided to vkGetPhysicalDeviceFeatures2
-11-26 21:10:15.338  3548  3600 I AdrenoVK-0: Unknown struct with type 0x3ba17508 provided to vkGetPhysicalDeviceFeatures2
-11-26 21:10:15.339  3548  3600 I AdrenoVK-0: Unknown struct with type 0x3b9ff250 provided to vkGetPhysicalDeviceFeatures2
-11-26 21:10:15.339  3548  3600 I AdrenoVK-0: Unknown struct with type 0x3ba17508 provided to vkGetPhysicalDeviceFeatures2
-11-26 21:10:15.339  3548  3600 I AdrenoVK-0: Unknown struct with type 0x3b9ff250 provided to vkGetPhysicalDeviceFeatures2
-11-26 21:10:15.339  3548  3600 I AdrenoVK-0: Unknown struct with type 0x3ba17508 provided to vkGetPhysicalDeviceFeatures2
 11-26 21:10:15.340  3548  3600 I flutter : [IMPORTANT:flutter/shell/platform/android/android_context_vk_impeller.cc(74)] Using the Impeller rendering backend (Vulkan).
-11-26 21:10:15.340  3548  3548 D OplusInputMethodUtil: init sDebug to false, init sDebugIme to false, init sAlwaysOn to false
-11-26 21:10:15.340  3548  3548 D OplusInputMethodUtil: updateDebugToClass InputMethodManager.DEBUG = false
-11-26 21:10:15.340  3548  3548 D OplusInputMethodUtil: updateDebugToClass ImeFocusController.DEBUG = false
-11-26 21:10:15.341  3548  3548 D OplusInputMethodUtil: updateDebugToClass OnBackInvokedDispatcher.DEBUG = false
-11-26 21:10:15.341  3548  3548 D OplusInputMethodUtil: updateDebugToClass InsetsController.DEBUG = false
-11-26 21:10:15.341  3548  3548 D OplusInputMethodUtil: updateDebugToClass BaseInputConnection.DEBUG = false
 11-26 21:10:15.344  3548  3605 I flutter : updater::updater: [shorebird] Patch check response: PatchCheckResponse { patch_available: false, patch: None, rolled_back_patch_numbers: Some([]) }
 11-26 21:10:15.344  3548  3605 I flutter : updater::updater: [shorebird] Update thread finished with status: No update
-11-26 21:10:15.348  3548  3548 D CompatChangeReporter: Compat change id reported: 377864165; UID 10364; state: ENABLED
-11-26 21:10:15.348  3548  3548 D OplusWindowManager: get WMS extension: android.os.BinderProxy@aecfd3f
-11-26 21:10:15.349  3548  3548 D ActivityThread: ComponentInfo{dev.selfhost.untab.android/dev.selfhost.untab.MainActivity} checkFinished=false 2
-11-26 21:10:15.350  3548  3548 D ResourcesManagerExtImpl: applyConfigurationToAppResourcesLocked app.getDisplayId() return callback.displayId:0
-11-26 21:10:15.352  3548  3548 D WindowManager: Add to mViews: com.android.internal.policy.DecorView{c03aa4 I.E...... R.....ID 0,0-0,0 alpha=1.0 viewInfo = }[MainActivity],pkg= dev.selfhost.untab.android
-11-26 21:10:15.352  3548  3592 D ExtensionsLoader: createInstance(64bit) : createExtendedFactory
-11-26 21:10:15.353  3548  3592 D ExtensionsLoader: Opened libhwuiextimpl.so
-11-26 21:10:15.353  3548  3592 D skia    : setRusSupported enable 0
-11-26 21:10:15.357  3548  3548 D ViewRootImplExtImpl: onDisplayChanged -1 for VRI android.view.ViewRootImpl@8185d10
-11-26 21:10:15.360  3548  3548 D ResourcesManagerExtImpl: applyConfigurationToAppResourcesLocked app.getDisplayId() return callback.displayId:0
 11-26 21:10:15.361  3548  3548 I flutter : shape:init=I1
 11-26 21:10:15.361  3548  3548 I flutter : shape:home-build=H1 0
 11-26 21:10:15.361  3548  3548 I flutter : shape:future-builder=FB1 null
 11-26 21:10:15.361  3548  3548 I flutter : shape:label=L1
-11-26 21:10:15.363  3548  3548 E OplusBracketLog: [OplusViewMirrorManager] updateHostViewRootIfNeeded, not support android.view.ViewRootImpl@8185d10
-11-26 21:10:15.364  3548  3548 I WindowExtensionsImpl: Initializing Window Extensions, vendor API level=9, activity embedding enabled=true
-11-26 21:10:15.366  3548  3548 I SurfaceView: 253090564 onAttachedToWindow
-11-26 21:10:15.367  3548  3548 D OplusPredictiveBackController: should not HookOnBackInvokedCallbackEnabled for application dev.selfhost.untab.MainActivity@e8cb17c sdk: 36
-11-26 21:10:15.367  3548  3548 D WindowOnBackDispatcher:  predictive settings is disabled for dev.selfhost.untab.android
-11-26 21:10:15.367  3548  3548 D OplusPredictiveBackController: should not HookOnBackInvokedCallbackEnabled for application dev.selfhost.untab.MainActivity@e8cb17c sdk: 36
-11-26 21:10:15.367  3548  3548 D WindowOnBackDispatcher:  predictive settings is disabled for dev.selfhost.untab.android
-11-26 21:10:15.367  3548  3548 D ViewRootImplExtImpl: wrapConfigInfoIntoFlags rotation=0, smallestScreenWidthDp=0, residentWS=false, scenario=0, bounds=Rect(0, 0 - 1116, 2484), relayoutAsync=false, flags=0, newFlags=1302331392, title=dev.selfhost.untab.android/dev.selfhost.untab.MainActivity
-11-26 21:10:15.372  3548  3548 D VRI[MainActivity]: relayoutWindow result, sizeChanged:true, surfaceControlChanged:true, transformHintChanged:false, mSurfaceSize:Point(1116, 2484), mLastSurfaceSize:Point(0, 0), mWidth:-1, mHeight:-1, requestedWidth:1116, requestedHeight:2484, transformHint:0, installOrientation:0, displayRotation:0, isSurfaceValid:true, attr.flag:-2122252032, tmpFrames:ClientWindowFrames{frame=[0,0][1116,2484] display=[0,0][1116,2484] parentFrame=[0,0][0,0]}, relayoutAsync:false, mSyncSeqId:0
-11-26 21:10:15.372  3548  3548 W VRI[MainActivity]: updateBlastSurfaceIfNeeded, surfaceSize:Point(1116, 2484), lastSurfaceSize:Point(0, 0), format:-3, blastBufferQueue:null
-11-26 21:10:15.372  3548  3548 W libc    : Access denied finding property "vendor.display.enable_optimal_refresh_rate"
-11-26 21:10:15.372  3548  3548 D BufferQueueConsumer: [](id:ddc00000000,api:0,p:-1,c:3548) connect: controlledByApp=false
-11-26 21:10:15.372  3548  3548 D BufferQueueConsumer: [VRI[MainActivity]#0(BLAST Consumer)0](id:ddc00000000,api:0,p:-1,c:3548) setMaxAcquiredBufferCount: 2
-11-26 21:10:15.372  3548  3548 W libc    : Access denied finding property "vendor.display.enable_optimal_refresh_rate"
-11-26 21:10:15.373  3548  3592 D HWUI    : createSurface new attribs array
-11-26 21:10:15.373  3548  3548 E OplusDisplayModeManager: has been initialized.
-11-26 21:10:15.374  3548  3592 D libEGL  : this is from skia gles
-11-26 21:10:15.374  3548  3592 D BufferQueueProducer: [VRI[MainActivity]#0(BLAST Consumer)0](id:ddc00000000,api:1,p:3548,c:3548) connect: api=1 producerControlledByApp=true
-11-26 21:10:15.376  3548  3548 D SurfaceView: 253090564, SurfaceView[dev.selfhost.untab.android/dev.selfhost.untab.MainActivity], layerid: 69140 createBlastSurfaceControls
-11-26 21:10:15.376  3548  3548 W libc    : Access denied finding property "vendor.display.enable_optimal_refresh_rate"
-11-26 21:10:15.376  3548  3548 D BufferQueueConsumer: [](id:ddc00000001,api:0,p:-1,c:3548) connect: controlledByApp=false
-11-26 21:10:15.376  3548  3548 D BufferQueueConsumer: [f15db04 SurfaceView[dev.selfhost.untab.android/dev.selfhost.untab.MainActivity]#1(BLAST Consumer)1](id:ddc00000001,api:0,p:-1,c:3548) setMaxAcquiredBufferCount: 2
-11-26 21:10:15.377  3548  3548 W libc    : Access denied finding property "vendor.display.enable_optimal_refresh_rate"
-11-26 21:10:15.377  3548  3548 I SurfaceView: 253090564 visibleChanged -- surfaceCreated 
-11-26 21:10:15.380  3548  3548 D SurfaceView: 253090564 handleSyncNoBuffer
-11-26 21:10:15.380  3548  3548 W VRI[MainActivity]: performTraversals: cancelAndRedraw, mLastPerformTraversalsSkipDrawReasonpredraw_p6
-11-26 21:10:15.384  3548  3548 D ViewRootImplExtImpl: wrapConfigInfoIntoFlags rotation=0, smallestScreenWidthDp=343, residentWS=false, scenario=0, bounds=Rect(0, 0 - 1116, 2484), relayoutAsync=false, flags=0, newFlags=1302342368, title=dev.selfhost.untab.android/dev.selfhost.untab.MainActivity
-11-26 21:10:15.388  3548  3548 D VRI[MainActivity]: relayoutWindow result, sizeChanged:false, surfaceControlChanged:false, transformHintChanged:false, mSurfaceSize:Point(1116, 2484), mLastSurfaceSize:Point(1116, 2484), mWidth:1116, mHeight:2484, requestedWidth:1116, requestedHeight:2484, transformHint:0, installOrientation:0, displayRotation:0, isSurfaceValid:true, attr.flag:-2122252032, tmpFrames:ClientWindowFrames{frame=[0,0][1116,2484] display=[0,0][1116,2484] parentFrame=[0,0][0,0]}, relayoutAsync:false, mSyncSeqId:0
-11-26 21:10:15.388  3548  3548 W VRI[MainActivity]: updateBlastSurfaceIfNeeded, surfaceSize:Point(1116, 2484), lastSurfaceSize:Point(1116, 2484), format:-3, blastBufferQueue:android.graphics.BLASTBufferQueue@ca80d34
-11-26 21:10:15.388  3548  3548 W VRI[MainActivity]: performTraversals: cancelAndRedraw, mLastPerformTraversalsSkipDrawReasonpredraw_p6
-11-26 21:10:15.389  3548  3548 W VRI[MainActivity]: handleResized, msg:, frameChanged:false, configChanged:false, displayChanged:false, attachedFrameChanged:false, compatScaleChanged:false, pendingDragResizing=false
-11-26 21:10:15.389  3548  3548 I DynamicFramerate [FRTCConfigManager]: initFrameRateConfig: 
-11-26 21:10:15.389  3548  3548 I DynamicFramerate [FRTCConfigManager]: 	levelsFor120hz: [120, 60]
-11-26 21:10:15.389  3548  3548 I DynamicFramerate [FRTCConfigManager]: 	thresholdsFor120hz: [200]
-11-26 21:10:15.389  3548  3548 I DynamicFramerate [FRTCConfigManager]: 	levelsFor90hz: [90]
-11-26 21:10:15.389  3548  3548 I DynamicFramerate [FRTCConfigManager]: 	thresholdsFor90hz: []
-11-26 21:10:15.389  3548  3548 I DynamicFramerate [FRTCConfigManager]: FRTCConfigManager: FRTC_CAPABILITY = 120, package name = dev.selfhost.untab.android, WINDOW_ANIMATION_SPEED_RATE = 10, SCROLL_ANIMATION_SPEED_RATE = 20, PACKAGE_ENABLE = false
-11-26 21:10:15.389  3548  3548 I DynamicFramerate [DynamicFrameRateController]: init info: mPackageName = dev.selfhost.untab.android, mIsEnabled = false
-11-26 21:10:15.389  3548  3548 D WindowLayoutComponentImpl: app addWindowLayoutInfoListener activity:dev.selfhost.untab.MainActivity@e8cb17c consumer :cc@fa2c8d2
-11-26 21:10:15.389  3548  3548 D WindowLayoutComponentImpl: Register WindowLayoutInfoListener on Context=dev.selfhost.untab.MainActivity@e8cb17c, of which baseContext=android.app.ContextImpl@5ebada3
-11-26 21:10:15.392  3548  3548 W VRI[MainActivity]: performTraversals: cancelAndRedraw, mLastPerformTraversalsSkipDrawReasonpredraw_p6
-11-26 21:10:15.400  3548  3548 D SurfaceView: 253090564 finishedDrawing
-11-26 21:10:15.400  3548  3548 D SurfaceView: 253090564 performDrawFinished mAttachedToWindow true
-11-26 21:10:15.402  3548  3621 E SurfaceComposerClient: Could not call release buffer callback, buffer not found bufferId:15238543966210 framenumber:100
-11-26 21:10:15.409  3548  3548 I SurfaceControl:  setExtendedRangeBrightness sc=Surface(name=dev.selfhost.untab.android/dev.selfhost.untab.MainActivity)/@0x20180ff,currentBufferRatio=1.0,desiredRatio=1.0
-11-26 21:10:15.409  3548  3548 D SurfaceView: 253090564 dispatchDraw mDrawFinished true isAboveParent false (mPrivateFlags & PFLAG_SKIP_DRAW) 128
-11-26 21:10:15.409  3548  3548 D SurfaceView: 253090564 clearSurfaceViewPort mCornerRadius 0.0
-11-26 21:10:15.412  3548  3592 D BLASTBufferQueue: [VRI[MainActivity]#0](f:0,a:1) acquireNextBufferLocked size=1116x2484 mFrameNumber=1 applyTransaction=true mTimestamp=691482352042103(auto) mPendingTransactions.size=0 graphicBufferId=15238543966213 transform=0
-11-26 21:10:15.412  3548  3592 D VRI[MainActivity]: Received frameCommittedCallback lastAttemptedDrawFrameNum=1 didProduceBuffer=true syncBuffer=false
-11-26 21:10:15.412  3548  3592 D ExtensionsLoader: createInstance(64bit) : createExtendedFactory
-11-26 21:10:15.413  3548  3592 D ExtensionsLoader: Opened libSchedAssistExtImpl.so
-11-26 21:10:15.413  3548  3548 D VRI[MainActivity]: draw finished. seqId=0
-11-26 21:10:15.427  3548  3548 D VRI[MainActivity]: onFocusEvent true
-11-26 21:10:15.431  3548  3548 D InsetsController: hide(ime(), fromIme=false)
-11-26 21:10:15.431  3548  3548 I ImeTracker: dev.selfhost.untab.android:8a69819b: onCancelled at PHASE_CLIENT_ALREADY_HIDDEN
 11-26 21:10:15.575  3548  3548 I flutter : shape:future-builder=FB1 G2
 11-26 21:10:15.662  3548  3548 I flutter : shape:count=10
 11-26 21:10:15.662  3548  3548 I flutter : shape:events-list=1
@@ -236,7 +28,6 @@
 11-26 21:10:16.265  3548  3548 I flutter : shape:events-list=3
 11-26 21:10:16.279  3548  3548 I flutter : shape:home-build=H1 30
 11-26 21:10:16.280  3548  3548 I flutter : shape:future-builder=FB1 G2
-11-26 21:10:16.435  3548  3616 D OplusScrollToTopManager: dev.selfhost.untab.android/dev.selfhost.untab.MainActivity,This com.android.internal.policy.DecorView{c03aa4 V.E...... R....... 0,0-1116,2484 aid=0 alpha=1.0 viewInfo = }[MainActivity] change focus to true
 11-26 21:10:16.495  3548  3548 I flutter : shape:future-builder=FB1 G2
 11-26 21:10:16.568  3548  3548 I flutter : shape:count=40
 11-26 21:10:16.568  3548  3548 I flutter : shape:events-list=4
@@ -272,10 +63,4 @@
 11-26 21:10:17.231  3548  3548 I flutter : shape:done=START-DONE
 11-26 21:10:17.292  3548  3548 I flutter : shape:future-builder=FB1 G2
 11-26 21:10:17.293  3548  3548 I flutter : shape:route=R1 /detail
-11-26 21:10:17.294  3548  3548 D OplusPredictiveBackController: should not HookOnBackInvokedCallbackEnabled for application dev.selfhost.untab.MainActivity@e8cb17c sdk: 36
-11-26 21:10:17.294  3548  3548 D WindowOnBackDispatcher:  predictive settings is disabled for dev.selfhost.untab.android
-11-26 21:10:17.294  3548  3548 W WindowOnBackDispatcher: OnBackInvokedCallback is not enabled for the application.
-11-26 21:10:17.294  3548  3548 W WindowOnBackDispatcher: Set 'android:enableOnBackInvokedCallback="true"' in the application manifest.
 11-26 21:10:17.312  3548  3548 I flutter : shape:detail=D1
-11-26 21:10:17.347  3548  3621 E SurfaceComposerClient: Could not call release buffer callback, buffer not found bufferId:15238543966220 framenumber:117
-11-26 21:10:20.703  3548  3725 D ProfileInstaller: Installing profile for dev.selfhost.untab.android

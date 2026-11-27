@@ -27,9 +27,21 @@ Patch numbers are the server's. Each patch was downloaded on one launch, booted 
 | 3 (`reuse-first-payload`) | the last target carries the first target's payload | `ROUTEB: payload library ~/.../replacement_0.dart is already loaded`, `loadGreeting ... REFUSED (invalid-bytecode)`, `applied 2/3`, `rolled back 2/2`, greeting `G1` | `Patch 3 is known bad, skipping`; patch 1 runs at 3/3 |
 | 4 (`append`) | patch 1's container with a fourth, non-existent target appended | `REFUSED (target-missing)`, `applied 3/4`, `rolled back 3/3 attached targets`, greeting `G1` | `Patch 4 is known bad, skipping`; patch 1 runs at 3/3 |
 
-The reuse-first-payload step is the case engine `64abe347` (cell `97f91aff`) did not handle: a payload library that is already loaded. Engine `88a7bf8c` refuses it with `invalid-bytecode` instead of crashing.
+The reuse-first-payload step exercises lineage #10's refusal of a payload library that is already loaded: engine `88a7bf8c` refuses it with `invalid-bytecode` and rolls back. Engine `64abe347` (cell `97f91aff`) was not run with this mode. The exact shape that crashed `97f91aff` (its patch 4: a 1-target `loadGreeting` patch with a missing selector appended, so 2 targets) was rerun on `83198f59` on 2026-11-26: `REFUSED (target-missing)`, `rolled back 1/1 attached targets`, marked known bad, no crash; see below.
 
 `crash.out` shows the harness found no crash report newer than the run's start (`no crash reports since 2026-11-26-194349` in `forced_partial.out`). The two `Runner-2026-11-26-1625*.ips` reports it also copied are 3.5 hours older than the first launch here. They are the `97f91aff` run's crashes of the same bundle id (see the other record) and are not kept.
+
+## The 97f91aff crash shape, rerun
+
+Run after the forced-partial steps, 2026-11-26 21:19 to 21:23 (Mac clock, UTC-5), same app, release, keys and harness. Logs: `crash_shape_*.log` (the app's own syslog lines), `forge_crash_shape.txt`, `crash_shape_crash.out`.
+
+| Patch | What it is | Boot verdict |
+|---|---|---|
+| 5 (`one`) | a real 1-target patch (`p06_async_return`, `loadGreeting` only; container 1882 bytes, as on `97f91aff`) | `parsed, targets=1`, `applied 1/1 targets`, `Launch success for patch 5`, greeting `G2` |
+| 6 (`append`) | patch 5's container with `selfhost_forged_partial_patch_no_such_selector` appended: targets `loadGreeting` and the bogus one (2018 bytes, as `97f91aff`'s patch 4) | `parsed, targets=2`, `activated loadGreeting ... before main`, `REFUSED (target-missing)`, `applied 1/2 targets`, `rolled back 1/1 attached targets, main runs the release code`, `Patch 6 is known bad, skipping`, greeting `G1` |
+| next boot | | `Prepared boot of patch 5`, `applied 1/1 targets`, `Launch success for patch 5`, greeting `G2` |
+
+On `97f91aff` the same sequence stopped after `activated loadGreeting` with a SIGSEGV on every launch. `crash_shape_crash.out` lists only the two `97f91aff` reports from 16:25 again; no report is newer than this run's start (21:19:23).
 
 ## Limits
 

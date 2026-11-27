@@ -8,7 +8,7 @@ The release and both patches were built with the CLI checkout at `6885b3fc` (#30
 
 - App `dev.selfhost.untab.android`, release `1.0.0+1`, `release.apk` sha256 `675bf5144a91250361105b6559be42065a88424703cde7b851f83ea9bcc968e4` (45072851 B), installed over adb. `bootstrap.log` prints `Flutter • revision b259cf5419ac79d1da59099b2ebbaa9f8f519877` and `Engine • revision 83198f598d638fb2b5848f64bb377f504185a3da`; the release and patch logs print `COHERENT platform=android engine=83198f59... | iOS Route B capability: NOT EVALUATED`.
 - Signed with a fresh RSA-2048 key pair made for this run. `release_log_excerpt.txt` has `🔏 Patch Signing: your key`; only `public.pem` is kept here (sha256 `2d7ed2df981d7b7196af001ffa18571a61a7af1d42bfa19187ca6beb8a19349c`). The private key and `secrets.sh` are not copied.
-- Steps are in `harness/bin/steps.sh`; their output is `steps.out`, and the per-boot logcat captures are `logcat_<step>.txt`.
+- Steps are in `harness/bin/steps.sh`; their output is `steps.out`, and the per-boot logcat captures are `logcat_<step>.txt`. They are filtered to the `flutter` tag, as the `9995f957` run's are; the full captures in the run dir hold no `FATAL`, `SIGSEGV` or crash line (checked with grep before filtering).
 
 | Step | Logcat | What it shows |
 |---|---|---|
@@ -25,6 +25,7 @@ The release and both patches were built with the CLI checkout at `6885b3fc` (#30
 
 ## Limits
 
+- `harness/env.sh`'s first line ("2026-11-24", "CLI 2f0b38a6") is a comment carried over from the `9995f957` harness and was not updated for this run; the run used the CLI checkout at `6885b3fc` (its `git rev-parse HEAD`) on 2026-11-26. `release.out` shows the generated Gradle file's `applicationId = "dev.selfhost.untab"`, which `harness/bin/release.sh` (line 16) then rewrites and checks; the installed app and every logcat line are `dev.selfhost.untab.android`.
 - Only the arm64 device was run. The arm32 and x86_64 artifacts were uploaded, not run.
 - Under patch 1 the `route=R1` and `detail=D1` shape lines are absent in `logcat_t254_boot*.txt`: the harness's post-frame callback gets no frame under that patch (the same harness limit as in `android-cell-9995f957-future-then`). It is not a patch defect; under patch 2 and the release both lines are present.
 - No negative signing cases were run (wrong key, tampered patch, unsigned patch). The run shows a valid signature accepted, not a bad one refused.

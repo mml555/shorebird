@@ -72,19 +72,21 @@ The request counts are the access logs' `handled request` lines, counted by `sta
 
 ## Engine and updater
 
-The updater did not move (`64a458f0`, the same `DEPS` `updater_rev` as engine `09c6f422`), so `engine_updater_evidence_guard.sh` was not re-run. The `f2458551` run applies: [`promotion-f2458551/engine_updater_evidence_guard.txt`](promotion-f2458551/engine_updater_evidence_guard.txt). The engine did move (`09c6f422` to `88a7bf8c`); that the updater `DEPS` pin is the same at both is the owner's statement, not re-read here.
+The updater did not move (`64a458f0`, the same `DEPS` `updater_rev` as engine `09c6f422`), so `engine_updater_evidence_guard.sh` was not re-run. The `f2458551` run applies: [`promotion-f2458551/engine_updater_evidence_guard.txt`](promotion-f2458551/engine_updater_evidence_guard.txt). The engine did move (`09c6f422` to `88a7bf8c`); the `DEPS` `updater_rev` at both is `64a458f034c86bca2eff6541a19d73781728b18f` (read 2026-11-27 from shorebird-flutter at each commit).
 
 ## Device run
 
-The iPhone 7 run is [`ios-cell-83198f59-forced-partial`](../../engine/route_b/evidence/ios-cell-83198f59-forced-partial/RESULT.md) (2026-11-26, local clock): app `dev.selfhost.untab` release `1.0.0+79`, signed with a fresh key, CLI `6885b3fc`. Patch 1 (the 3-target `p06_async_return` + `p03_setstate_closure` patch) applied 3/3. Three forged patches were each refused and rolled back as a whole: `retarget-last` (`target-missing`, 2/2 rolled back), `reuse-first-payload` (`ROUTEB: payload library ... is already loaded`, `REFUSED (invalid-bytecode)`, 2/2) and `append` (`target-missing`, 3/3). After each, the next boot logged `Patch N is known bad, skipping` and ran patch 1 at 3/3. No crash report. The engine of the superseded `97f91aff` crashed on a forged patch: [`ios-cell-97f91aff-activation-crash`](../../engine/route_b/evidence/ios-cell-97f91aff-activation-crash/RESULT.md).
+The iPhone 7 run is [`ios-cell-83198f59-forced-partial`](../../engine/route_b/evidence/ios-cell-83198f59-forced-partial/RESULT.md) (2026-11-26, local clock): app `dev.selfhost.untab` release `1.0.0+79`, signed with a fresh key, CLI `6885b3fc`. Patch 1 (the 3-target `p06_async_return` + `p03_setstate_closure` patch) applied 3/3. Three forged patches were each refused and rolled back as a whole: `retarget-last` (`target-missing`, 2/2 rolled back), `reuse-first-payload` (`ROUTEB: payload library ... is already loaded`, `REFUSED (invalid-bytecode)`, 2/2) and `append` (`target-missing`, 3/3). After each, the next boot logged `Patch N is known bad, skipping` and ran patch 1 at 3/3. No crash report. The engine of the superseded `97f91aff` crashed on a forged patch: [`ios-cell-97f91aff-activation-crash`](../../engine/route_b/evidence/ios-cell-97f91aff-activation-crash/RESULT.md). The exact shape that crashed `97f91aff` (its patch 4: a 1-target `loadGreeting` patch with a missing selector appended, so 2 targets) was rerun on `83198f59` on 2026-11-26: `REFUSED (target-missing)`, `rolled back 1/1 attached targets`, marked known bad, no crash ([crash shape](../../engine/route_b/evidence/ios-cell-83198f59-forced-partial/RESULT.md#the-97f91aff-crash-shape-rerun)).
 
 The Android run is [`android-cell-83198f59`](../../engine/route_b/evidence/android-cell-83198f59/RESULT.md) (2026-11-26, local clock): OnePlus CPH2551, Android 16, arm64 only (arm32 and x86_64 uploaded, not run), app `dev.selfhost.untab.android` release `1.0.0+1`, CLI `6885b3fc` (trees equal `910ff250`'s), signed with a fresh key. Patch 1 (`t254`) and patch 2 (the `awaits` set) each logged `Patch signature is valid` and `Launch success for patch N` (G4; then G2, `count=10..50`, `events=5`). A rollback of patch 2 (`Rolled back: yes`) still ran patch 2 on the learn boot, and the next two boots ran patch 1. No negative signing cases were run; under patch 1 the `route=R1` and `detail=D1` lines are missing because of a harness limit (no frame for the post-frame callback), not a patch defect.
 
+## Record checks
+
+`verify_supported_state.sh` printed `SUPPORTED STATE VERIFIED` (rc 0) on this record's final text, with SHOREBIRD_ROOT = a bootstrapped checkout at the recorded selector and OVERLAY = the minted overlay. PyYAML was absent, so its stricter load was skipped; both YAML files were parsed separately with Ruby's YAML loader. `tool/check_supported_state_record.sh`: ok.
+
 ## Not done
 
-- Android device run (above).
-- `verify_supported_state.sh`: SUPPORTED STATE VERIFIED (rc 0), run 2026-11-27 with SHOREBIRD_ROOT = a bootstrapped checkout at the recorded selector and OVERLAY = the minted overlay; PyYAML absent, so the stricter load was skipped
-- Unsigned patches and ordinary async/`Future` patch shapes were not run on this cell. The `9995f957` runs do not carry over to a new engine.
+- Unsigned patches were not run on this cell. Ordinary async/`Future` patch shapes ran on Android only (`t254`, the `awaits` set), not on the iPhone. The `9995f957` runs do not carry over to a new engine.
 - The items still open from `PROMOTION_f2458551.md`:
   - port the post-step-7 failure check into `selfhost/ci`;
   - make shorebird-flutter's `selfhost-engine-mirror` action read an overlay in parts;

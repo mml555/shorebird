@@ -346,11 +346,12 @@ overrides:
   - filename: "selfhost/engine/route_b/evidence/ios-cell-83198f59-forced-partial/**"
     ignoreWords: [DTSDK, NUMS, SDKROOT, appintentsmetadataprocessor, cryptexd, noindex, sdkstatcache, xctool, xctoolchain]
   - filename: "selfhost/engine/route_b/evidence/ios-cell-97f91aff-activation-crash/**"
-    ignoreWords: [DTSDK, NUMS, SDKROOT, appintentsmetadataprocessor, cryptexd, noindex, sdkstatcache, xctool, xctoolchain]
+    ignoreWords: [runningboardd, DTSDK, NUMS, SDKROOT, appintentsmetadataprocessor, cryptexd, noindex, sdkstatcache, xctool, xctoolchain]
 
-  # The cell 83198f59 Android run: the same captured logcat, Gradle and CLI lines as the 9995f957 run.
+  # The cell 83198f59 Android run: the same captured logcat (filtered to the flutter tag), Gradle and CLI
+  # lines as the 9995f957 run, and the harness's grep fragment "verif".
   - filename: "selfhost/engine/route_b/evidence/android-cell-83198f59/**"
-    ignoreWords: [Oplus, Supression, androi, debugsymbols, downloa, libappst, libappsvz, objcopy, scontext, vmfjjh, KEYGUARD, keyguard, dumpsys, keyevent, unlaunchable, opsec, pubadd, NUMS, uimode]
+    ignoreWords: [verif, Oplus, Supression, androi, debugsymbols, downloa, libappst, libappsvz, objcopy, scontext, vmfjjh, KEYGUARD, keyguard, dumpsys, keyevent, unlaunchable, opsec, pubadd, NUMS, uimode]
 
   # The cell 9995f957 Android run: the same captured logcat, Gradle and CLI lines as
   # android-cell-f2458551, nc's name for port 18185, and the harness's adb vocabulary.
@@ -1121,6 +1122,7 @@ words:
   - sideloaded
   - sideloading
   - signup
+  - SIGSEGV
   - SIGSTOP
   - spikeapp
   - spoofable # X-Forwarded-For discussion in selfhost/INTEGRATION.md
