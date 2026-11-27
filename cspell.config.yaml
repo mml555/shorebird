@@ -110,6 +110,9 @@ ignorePaths:
     # proxy. Request ids, hashes and the runtime's own log text are
     # captured verbatim; the PROMOTION_*.md beside them are authored and stay checked.
     "selfhost/evidence/r12-linux-ci/promotion-*/*_access.txt",
+    # docker stats of the build host at collection time: co-tenant container names
+    # are Docker's random adjective_surname pairs, different on every run.
+    "selfhost/evidence/r12-linux-ci/promotion-*/arms/*/host_memory.txt",
   ]
 overrides:
   # The mint pipeline (selfhost/engine/route_b/mint): tar and git plumbing flags, python stdlib names,
@@ -355,7 +358,7 @@ overrides:
   - filename: "selfhost/engine/route_b/evidence/android-cell-83198f59/**"
     ignoreWords: [verif, Oplus, Supression, androi, debugsymbols, downloa, libappst, libappsvz, objcopy, scontext, vmfjjh, KEYGUARD, keyguard, dumpsys, keyevent, unlaunchable, opsec, pubadd, NUMS, uimode]
   - filename: "selfhost/engine/route_b/evidence/android-cell-c9208259/**"
-    ignoreWords: [verif, Oplus, Supression, androi, debugsymbols, downloa, libappst, libappsvz, objcopy, scontext, vmfjjh, KEYGUARD, keyguard, dumpsys, keyevent, unlaunchable, opsec, pubadd, NUMS, uimode]
+    ignoreWords: [BKANJ, libappsq, libappsu, verif, Oplus, Supression, androi, debugsymbols, downloa, libappst, libappsvz, objcopy, scontext, vmfjjh, KEYGUARD, keyguard, dumpsys, keyevent, unlaunchable, opsec, pubadd, NUMS, uimode]
 
   # The cell 9995f957 Android run: the same captured logcat, Gradle and CLI lines as
   # android-cell-f2458551, nc's name for port 18185, and the harness's adb vocabulary.
