@@ -250,8 +250,12 @@ class WithdrawnEngineException implements Exception {
       '''
 Refusing to build: engine $engineRevision is $reason.
 
-The supported engine cell is $supportedCell. To move to it, install the newest
-selfhost-v* release (selfhost/GETTING_STARTED.md, "Install the CLI and start the
-mirror"); its CLI pins the Flutter revision that selects $supportedCell
-(selfhost/compatibility.yaml). Do not edit bin/internal/engine.version by hand.''';
+The supported engine cell is $supportedCell. To move to it, install a selfhost-v*
+release whose selfhost/compatibility.yaml names cell $supportedCell, or build the
+CLI from main until one is cut (selfhost/GETTING_STARTED.md, "Install the CLI
+and start the mirror"). Do not edit bin/internal/engine.version by hand.
+
+A patch must be built with its release's Flutter revision, so existing releases
+on $engineRevision cannot be patched. Make a new release on $supportedCell and
+ship it.''';
 }
