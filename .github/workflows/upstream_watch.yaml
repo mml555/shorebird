@@ -36,6 +36,7 @@ jobs:
         with:
           sparse-checkout: tool/upstream_watch.sh
           sparse-checkout-cone-mode: false
+          persist-credentials: false
 
       - name: Find the tracking issue
         id: find
@@ -47,11 +48,16 @@ jobs:
             --jq '[.[] | select(.title == "Upstream watch")] | sort_by(.number) | .[0].number // empty')
           echo "number=${number}" >> "$GITHUB_OUTPUT"
           if [ -n "$number" ]; then
-            gh issue view "$number" --json body --jq .body > body.txt
+            # The web editor saves CRLF line endings; strip them first.
+            gh issue view "$number" --json body --jq .body | tr -d '\r' > body.txt
             # The state is the JSON between the two markers.
             sed -n '/^<!-- upstream-watch-state$/,/^-->$/p' body.txt | sed '1d;$d' > previous.json
           fi
-          if ! jq -e . previous.json > /dev/null 2>&1; then
+          # A missing, empty or unparseable state is a lost baseline, not "nothing new".
+          if jq -e 'type == "object" and length > 0' previous.json > /dev/null 2>&1; then
+            echo "baseline=ok" >> "$GITHUB_OUTPUT"
+          else
+            echo "baseline=lost" >> "$GITHUB_OUTPUT"
             echo '{}' > previous.json
           fi
 
@@ -64,6 +70,7 @@ jobs:
       - name: Update the issue
         env:
           NUMBER: ${{ steps.find.outputs.number }}
+          BASELINE: ${{ steps.find.outputs.baseline }}
         run: |
           {
             cat report.md
@@ -79,12 +86,22 @@ jobs:
             exit 0
           fi
 
-          if [ ! -s changes.md ]; then
-            echo "Nothing new; the issue is left alone."
+          if [ "$BASELINE" != ok ]; then
+            gh issue edit "$NUMBER" --body-file new_body.md
+            gh issue comment "$NUMBER" --body "The saved state in this issue was missing or unreadable (the issue body was probably edited), so it was reset to the current state. Changes since the last good check are not listed. ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
             exit 0
           fi
 
-          gh issue edit "$NUMBER" --body-file new_body.md
+          # Keep the table current without notifying (an edit sends no email).
+          if [ "$(jq -S 'del(.generated_at)' previous.json)" != "$(jq -S 'del(.generated_at)' state.json)" ]; then
+            gh issue edit "$NUMBER" --body-file new_body.md
+          fi
+
+          if [ ! -s changes.md ]; then
+            echo "Nothing new to announce."
+            exit 0
+          fi
+
           {
             echo "New upstream changes ($(date -u +%F)):"
             echo

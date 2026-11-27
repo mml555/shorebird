@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# cspell:words argjson fdev uhead slurpfile frelease utag todate tostring getpath
+# cspell:words argjson fdev uhead slurpfile frelease todate tostring getpath nullable
 # Collects what upstream Shorebird and Flutter have shipped and compares it
 # with what this fork supports. Detects and reports only; integrating an
 # update is the manual promotion process (selfhost/TOOLCHAIN_PROMOTION.md).
@@ -30,11 +30,45 @@ die() {
   exit 1
 }
 
-# gh_api <path> [gh api args...]: fail with the path named.
+# gh_api <path> [gh api args...]: stdout only; on failure die, naming the path
+# and gh's own message. stderr is never mixed into the result.
 gh_api() {
-  local out
-  out=$(gh api "$@" 2>&1) || die "gh api $1 failed: $out"
+  local out err_file
+  err_file=$(mktemp)
+  if ! out=$(gh api "$@" 2>"$err_file"); then
+    local msg
+    msg=$(cat "$err_file")
+    rm -f "$err_file"
+    die "gh api $1 failed: $msg"
+  fi
+  rm -f "$err_file"
   printf '%s\n' "$out"
+}
+
+# gh_api_or_absent <path> [gh api args...]: like gh_api, but a genuine HTTP 404
+# prints nothing and returns 0 (the thing is absent); any other failure dies.
+gh_api_or_absent() {
+  local out err_file
+  err_file=$(mktemp)
+  if out=$(gh api "$@" 2>"$err_file"); then
+    rm -f "$err_file"
+    printf '%s' "$out"
+    return 0
+  fi
+  local msg
+  msg=$(cat "$err_file")
+  rm -f "$err_file"
+  case $msg in
+    *"HTTP 404"*) return 0 ;;
+    *) die "gh api $1 failed: $msg" ;;
+  esac
+}
+
+# newest_tag <prefix> <tag list>: the highest <prefix>X.Y.Z (no pre-releases),
+# or nothing.
+newest_tag() {
+  local prefix=$1 tags=$2
+  printf '%s\n' "$tags" | grep -E "^${prefix}[0-9]+\.[0-9]+\.[0-9]+\$" | sort -V | tail -1 || true
 }
 
 # The value of a top-level `shorebird:` key in compatibility.yaml (the first
@@ -53,7 +87,7 @@ yaml_value() {
 }
 
 collect() {
-  local tmp release cmp flutter_dev updater_head rcb flutter_releases
+  local tmp release cmp flutter_dev updater_head rcb branches flutter_release tags patch_tag push_tag
   tmp=$(mktemp -d)
   trap 'rm -rf "$tmp"' RETURN
 
@@ -62,17 +96,22 @@ collect() {
   release=$(gh_api "repos/$UPSTREAM/releases/latest")
   cmp=$(gh_api "repos/$OURS/compare/main...shorebirdtech:main" --jq '{ahead_by, status}')
 
-  # Shorebird's Flutter fork: no Releases, so the highest release branch.
-  flutter_releases=$(gh_api "repos/$UPSTREAM_FLUTTER/branches" --paginate --jq '.[].name' |
-    grep -E '^flutter_release/[0-9]+\.[0-9]+\.[0-9]+' | sort -V | tail -1 || true)
+  # Shorebird's Flutter fork: no Releases, so the highest release branch
+  # (plain X.Y.Z only; a -sb.N suffix is not a new Flutter release).
+  branches=$(gh_api "repos/$UPSTREAM_FLUTTER/branches" --paginate --jq '.[].name')
+  flutter_release=$(printf '%s\n' "$branches" |
+    grep -E '^flutter_release/[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1 || true)
+  [ -n "$flutter_release" ] || die "$UPSTREAM_FLUTTER has no flutter_release/X.Y.Z branch in its branch list"
   flutter_dev=$(gh_api "repos/$UPSTREAM_FLUTTER/commits/shorebird/dev")
-  rcb=$(gh api -H 'Accept: application/vnd.github.raw' \
-    "repos/$UPSTREAM_FLUTTER/contents/bin/internal/release-candidate-branch.version?ref=shorebird/dev" 2>/dev/null |
-    tr -d '[:space:]' || true)
+  # A genuine 404 means the file is absent (null in the state).
+  rcb=$(gh_api_or_absent -H 'Accept: application/vnd.github.raw' \
+    "repos/$UPSTREAM_FLUTTER/contents/bin/internal/release-candidate-branch.version?ref=shorebird/dev" |
+    tr -d '[:space:]')
 
   updater_head=$(gh_api "repos/$UPSTREAM_UPDATER/commits/main")
-  local updater_tag
-  updater_tag=$(gh_api "repos/$UPSTREAM_UPDATER/tags" --paginate --jq '.[].name' | sort -V | tail -1)
+  tags=$(gh_api "repos/$UPSTREAM_UPDATER/tags" --paginate --jq '.[].name')
+  patch_tag=$(newest_tag 'patch-v' "$tags")
+  push_tag=$(newest_tag 'shorebird_code_push-v' "$tags")
 
   curl -fsS --retry 3 "$RELEASES_URL" >"$tmp/releases.json" || die "could not fetch $RELEASES_URL"
 
@@ -91,37 +130,41 @@ collect() {
     --argjson fdev "$flutter_dev" \
     --argjson uhead "$updater_head" \
     --slurpfile releases "$tmp/releases.json" \
-    --arg frelease "$flutter_releases" \
+    --arg frelease "$flutter_release" \
     --arg rcb "$rcb" \
-    --arg utag "$updater_tag" \
+    --arg patch_tag "$patch_tag" \
+    --arg push_tag "$push_tag" \
     --arg cli_version "$(yaml_value cli_version "$tmp/compat.yaml")" \
     --arg cli_revision "$(yaml_value cli_revision "$tmp/compat.yaml")" \
     --arg flutter_revision "$(yaml_value flutter_revision "$tmp/compat.yaml")" \
     --arg engine_revision "$(yaml_value engine_revision "$tmp/compat.yaml")" \
     --arg updater_revision "$(yaml_value updater_revision "$tmp/compat.yaml")" '
+    def nullable: if . == "" then null else . end;
+    def day: .[0:10];
     def channel($c):
       ($releases[0].current_release[$c]) as $h
-      | ($releases[0].releases | map(select(.hash == $h and .channel == $c)) | first)
-      | {version, dart_sdk_version, release_date, hash};
+      | ($releases[0].releases | map(select(.hash == $h and .channel == $c)) | first) as $r
+      | if $r == null then error("Flutter \($c) hash \($h) is not in releases_linux.json") else $r end
+      | { version, dart_sdk_version: (.dart_sdk_version | split(" ")[0]),
+          release_date: (.release_date | day), hash };
+    # Upstream names reach Markdown and an HTML comment: allow only
+    # [A-Za-z0-9._/+-], so no bracket, backtick, pipe or "-->" gets through.
+    def safe: walk(if type == "string" then gsub("[^A-Za-z0-9._/+-]"; "_") else . end);
     {
-      generated_at: (now | todate),
+      generated_at: (now | todate | day),
       shorebird_cli: {
-        latest_release: {
-          tag: $release.tag_name,
-          date: $release.published_at,
-          url: $release.html_url
-        },
+        latest_release: { tag: $release.tag_name, date: ($release.published_at | day) },
         upstream_commits_we_lack: $cmp.ahead_by,
         compare_status: $cmp.status
       },
       shorebird_flutter: {
         latest_release_branch: $frelease,
-        dev: { sha: $fdev.sha, date: $fdev.commit.committer.date },
-        release_candidate_branch: $rcb
+        dev: { sha: $fdev.sha, date: ($fdev.commit.committer.date | day) },
+        release_candidate_branch: ($rcb | nullable)
       },
       shorebird_updater: {
-        main: { sha: $uhead.sha, date: $uhead.commit.committer.date },
-        latest_tag: $utag
+        main: { sha: $uhead.sha, date: ($uhead.commit.committer.date | day) },
+        latest_tag: { patch: ($patch_tag | nullable), shorebird_code_push: ($push_tag | nullable) }
       },
       flutter: { stable: channel("stable"), beta: channel("beta") },
       ours: {
@@ -131,54 +174,60 @@ collect() {
         engine_revision: $engine_revision,
         updater_revision: $updater_revision
       }
-    }'
+    } | safe'
 }
 
-# Fields that appear in the table but do not count as a change: a timestamp,
-# and a commit count that moves with every upstream commit.
-IGNORED='["generated_at","shorebird_cli.upstream_commits_we_lack","shorebird_cli.compare_status"]'
+# Only these fields notify (a comment, so an email): a new Shorebird CLI
+# release, a new highest flutter_release/* branch, a new release-candidate
+# version on shorebird/dev, a new updater tag in each family, and a new Flutter
+# stable or beta version. Head shas, dates and the commit count appear in the
+# table but never notify.
+NOTIFY='["shorebird_cli.latest_release.tag","shorebird_flutter.latest_release_branch","shorebird_flutter.release_candidate_branch","shorebird_updater.latest_tag.patch","shorebird_updater.latest_tag.shorebird_code_push","flutter.stable.version","flutter.beta.version"]'
 
-# changes <previous.json> <current.json>: Markdown bullets, one per changed field.
+# changes <previous.json> <current.json>: Markdown bullets, one per changed
+# notifying field. A previous state that is not a non-empty object (a first
+# run, or a lost baseline) lists nothing; the caller decides what that means.
 changes() {
-  jq -r -n --slurpfile prev "$1" --slurpfile cur "$2" --argjson ignored "$IGNORED" '
-    def flat: [paths(scalars) as $p | {key: ($p | map(tostring) | join(".")), value: getpath($p)}]
-              | map(select(.key as $k | $ignored | index($k) | not))
-              | from_entries;
-    def link($k; $v):
-      if   ($k | startswith("shorebird_cli.latest_release.tag")) then "[\($v)](https://github.com/shorebirdtech/shorebird/releases/tag/\($v))"
-      elif ($k == "shorebird_flutter.latest_release_branch") then "[\($v)](https://github.com/shorebirdtech/flutter/tree/\($v))"
-      elif ($k == "shorebird_flutter.dev.sha") then "[\($v[0:10])](https://github.com/shorebirdtech/flutter/commit/\($v))"
-      elif ($k == "shorebird_updater.main.sha") then "[\($v[0:10])](https://github.com/shorebirdtech/updater/commit/\($v))"
-      elif ($k | test("^flutter\\.(stable|beta)\\.hash$")) then "[\($v[0:10])](https://github.com/flutter/flutter/commit/\($v))"
-      elif ($k == "ours.flutter_revision") then "[\($v[0:10])](https://github.com/mml555/shorebird-flutter/commit/\($v))"
-      elif ($k == "ours.cli_revision") then "[\($v[0:10])](https://github.com/mml555/shorebird/commit/\($v))"
-      elif ($k == "ours.engine_revision") then "[\($v[0:10])](https://github.com/flutter/flutter/commit/\($v))"
-      else "`\($v)`" end;
-    ($prev[0] | flat) as $p | ($cur[0] | flat) as $c
-    | $c | to_entries[]
-    | select($p[.key] != .value)
+  jq -r -n --slurpfile prev "$1" --slurpfile cur "$2" --argjson notify "$NOTIFY" '
+    def flat: . as $r
+      | [path(..) as $p | select($p | length > 0)
+         | ($r | getpath($p)) as $v | select(($v | type) != "object" and ($v | type) != "array")
+         | {key: ($p | map(tostring) | join(".")), value: $v}]
+      | map(select(.key as $k | $notify | index($k)))
+      | from_entries;
+    def show($k; $v):
+      if $v == null then "absent"
+      else ($v | tostring) as $s
+        | if   ($k == "shorebird_cli.latest_release.tag") then "[\($s)](https://github.com/shorebirdtech/shorebird/releases/tag/\($s))"
+          elif ($k == "shorebird_flutter.latest_release_branch") then "[\($s)](https://github.com/shorebirdtech/flutter/tree/\($s))"
+          else "`\($s)`" end
+      end;
+    (if ($prev[0] | type) == "object" then $prev[0] else {} end) as $pv
+    | ($pv | flat) as $p | ($cur[0] | flat) as $c
     | select($p | length > 0)
-    | "- `\(.key)`: " + (if $p[.key] == null then "(new)" else link(.key; $p[.key]) end) + " -> " + link(.key; .value)
+    | $c | to_entries[] | . as $e
+    | select((($p | has($e.key)) | not) or ($p[$e.key] != $e.value))
+    | "- `\($e.key)`: " + (if ($p | has($e.key)) then show($e.key; $p[$e.key]) else "(new)" end) + " -> " + show($e.key; $e.value)
   '
 }
 
 report() {
   local prev=$1 state=$2
   jq -r '
-    def d: if . == null or . == "" then "-" else (.[0:10]) end;
-    def sha: if . == null or . == "" then "-" else .[0:10] end;
-    def stack($c): "\($c.version) (Dart \($c.dart_sdk_version), \($c.release_date | d))";
+    def sha: if . == null or . == "" then "absent" else (tostring | .[0:10]) end;
+    def val: if . == null or . == "" then "absent" else tostring end;
+    def stack($c): "\($c.version | val) (Dart \($c.dart_sdk_version | val), \($c.release_date | val))";
     "## Upstream watch",
     "",
-    "Checked \(.generated_at). Detection only; integrating an update is the manual promotion process (`selfhost/TOOLCHAIN_PROMOTION.md`).",
+    "Checked \(.generated_at). Detection only; integrating an update is the manual promotion process (`selfhost/TOOLCHAIN_PROMOTION.md`). Leave this issue open: a comment is added only when a new Shorebird CLI release, `flutter_release/*` branch, release-candidate version, updater tag or Flutter stable or beta version appears. Head commits and the commit count below are informational and never notify.",
     "",
     "| What | Ours (supported) | Upstream |",
     "| --- | --- | --- |",
-    "| Shorebird CLI | `\(.ours.cli_version)` at [`\(.ours.cli_revision | sha)`](https://github.com/mml555/shorebird/commit/\(.ours.cli_revision)) | [\(.shorebird_cli.latest_release.tag)](\(.shorebird_cli.latest_release.url)) (\(.shorebird_cli.latest_release.date | d)) |",
+    "| Shorebird CLI | `\(.ours.cli_version)` at [`\(.ours.cli_revision | sha)`](https://github.com/mml555/shorebird/commit/\(.ours.cli_revision)) | [\(.shorebird_cli.latest_release.tag)](https://github.com/shorebirdtech/shorebird/releases/tag/\(.shorebird_cli.latest_release.tag)) (\(.shorebird_cli.latest_release.date | val)) |",
     "| Upstream main commits we lack | - | \(.shorebird_cli.upstream_commits_we_lack) (compare status: \(.shorebird_cli.compare_status)) |",
-    "| Shorebird Flutter fork | [`\(.ours.flutter_revision | sha)`](https://github.com/mml555/shorebird-flutter/commit/\(.ours.flutter_revision)) | release branch [\(.shorebird_flutter.latest_release_branch)](https://github.com/shorebirdtech/flutter/tree/\(.shorebird_flutter.latest_release_branch)); `shorebird/dev` [\(.shorebird_flutter.dev.sha | sha)](https://github.com/shorebirdtech/flutter/commit/\(.shorebird_flutter.dev.sha)) (\(.shorebird_flutter.dev.date | d)); candidate `\(.shorebird_flutter.release_candidate_branch)` |",
+    "| Shorebird Flutter fork | [`\(.ours.flutter_revision | sha)`](https://github.com/mml555/shorebird-flutter/commit/\(.ours.flutter_revision)) | release branch [\(.shorebird_flutter.latest_release_branch)](https://github.com/shorebirdtech/flutter/tree/\(.shorebird_flutter.latest_release_branch)); `shorebird/dev` [\(.shorebird_flutter.dev.sha | sha)](https://github.com/shorebirdtech/flutter/commit/\(.shorebird_flutter.dev.sha)) (\(.shorebird_flutter.dev.date | val)); candidate `\(.shorebird_flutter.release_candidate_branch | val)` |",
     "| Engine | `\(.ours.engine_revision | sha)` | - |",
-    "| Updater | `\(.ours.updater_revision)` | `main` [\(.shorebird_updater.main.sha | sha)](https://github.com/shorebirdtech/updater/commit/\(.shorebird_updater.main.sha)) (\(.shorebird_updater.main.date | d)); newest tag `\(.shorebird_updater.latest_tag)` |",
+    "| Updater | `\(.ours.updater_revision)` | `main` [\(.shorebird_updater.main.sha | sha)](https://github.com/shorebirdtech/updater/commit/\(.shorebird_updater.main.sha)) (\(.shorebird_updater.main.date | val)); newest tags `\(.shorebird_updater.latest_tag.patch | val)`, `\(.shorebird_updater.latest_tag.shorebird_code_push | val)` |",
     "| Flutter stable | - | \(stack(.flutter.stable)) |",
     "| Flutter beta | - | \(stack(.flutter.beta)) |"
   ' "$state"
@@ -186,7 +235,7 @@ report() {
   echo "### New since last check"
   echo
   local list
-  list=$(changes "$prev" "$state")
+  list=$(changes "$prev" "$state") || die "could not compare against $prev"
   if [ -n "$list" ]; then
     printf '%s\n' "$list"
   else
