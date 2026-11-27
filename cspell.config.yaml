@@ -342,6 +342,12 @@ overrides:
   - filename: "selfhost/engine/route_b/evidence/ios-cell-9995f957-future-members/**"
     ignoreWords: [DTSDK, Interm, NUMS, SDKROOT, STEPSF, adychmnujjvbmmhkanunmpycdnlp, appintentsmetadataprocessor, cryptexd, noindex, olled, opsec, sdkstatcache, xctool, xctoolchain]
 
+  # The cell 83198f59 iPhone run and the 97f91aff crash note: the same captured Xcode and syslog lines.
+  - filename: "selfhost/engine/route_b/evidence/ios-cell-83198f59-forced-partial/**"
+    ignoreWords: [DTSDK, NUMS, SDKROOT, appintentsmetadataprocessor, cryptexd, noindex, sdkstatcache, xctool, xctoolchain]
+  - filename: "selfhost/engine/route_b/evidence/ios-cell-97f91aff-activation-crash/**"
+    ignoreWords: [DTSDK, NUMS, SDKROOT, appintentsmetadataprocessor, cryptexd, noindex, sdkstatcache, xctool, xctoolchain]
+
   # The cell 9995f957 Android run: the same captured logcat, Gradle and CLI lines as
   # android-cell-f2458551, nc's name for port 18185, and the harness's adb vocabulary.
   - filename: "selfhost/engine/route_b/evidence/android-cell-9995f957-future-then/**"
