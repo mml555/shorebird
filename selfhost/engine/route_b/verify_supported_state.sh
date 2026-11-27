@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # cspell:words ARCHBYTES CLICONTAINS CLIREV
-# cspell:words dups DUPPY cleanroom noyaml pyyaml FDIR stdlib nopython
+# cspell:words dups DUPPY cleanroom noyaml pyyaml FDIR stdlib nopython Psych ARGV
 # verify_supported_state.sh -- re-check the DEPLOYABLE IDENTITY claims in
 # SUPPORTED_STATE.yaml against the artifacts themselves.
 #
@@ -86,7 +86,8 @@ val() { sed -nE "s/^[[:space:]]*$1:[[:space:]]*([^[:space:]#]+).*/\1/p" "$STATE"
 # sharing an indent with a mapping).
 #
 # When PyYAML IS present a real load runs as well, so the stronger check is not
-# lost -- it is simply no longer required to run at all.
+# lost -- it is simply no longer required to run at all. Without PyYAML, Ruby's
+# Psych parses it when ruby is on PATH (it is on stock macOS): a syntax-only parse.
 LINT_OUT=""
 if command -v python3 >/dev/null 2>&1; then
   if LINT_OUT=$(python3 "$HERE/lib/record_lint.py" "$STATE" 2>&1); then
@@ -99,6 +100,13 @@ if command -v python3 >/dev/null 2>&1; then
       YAML_OK=1
     else
       YAML_OK=0
+    fi
+  elif command -v ruby >/dev/null 2>&1; then
+    # No PyYAML (stock macOS python3): Ruby's Psych parses it instead.
+    if ruby -rpsych -e 'Psych.parse_stream(File.read(ARGV[0]))' "$STATE" >/dev/null 2>&1; then
+      YAML_OK=ruby
+    else
+      YAML_OK=ruby0
     fi
   else
     YAML_OK=absent
@@ -137,7 +145,10 @@ esac
 case "$YAML_OK" in
   1) ok "and a real YAML loader accepts it (PyYAML present)" ;;
   0) bad "a real YAML loader REJECTS the record even though the lint passed" ;;
-  absent) echo "  --      PyYAML absent; the stricter load was skipped (not required)" ;;
+  ruby) ok "and a real YAML parser accepts it (Ruby Psych; PyYAML absent)" ;;
+  ruby0) bad "a real YAML parser (Ruby Psych) REJECTS the record even though the lint passed; \
+ruby -rpsych -e 'Psych.parse_stream(File.read(ARGV[0]))' $STATE names the line" ;;
+  absent) echo "  --      neither PyYAML nor ruby present; the stricter load was skipped (not required)" ;;
 esac
 if [[ -z "$ROOT" ]]; then
   bad "no runtime checkout: set SHOREBIRD_ROOT, or run selfhost/scripts/bootstrap_selfhost.sh \
