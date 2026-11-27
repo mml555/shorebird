@@ -70,6 +70,9 @@ class DartSdkCompatibility {
     // Flutter 3.50 engine 64abe347 and the cell 97f91aff minted over it (Dart 39c02d7f). selfhost/cdn/experimental_hashes.map.
     '64abe347': '39c02d7f',
     '97f91aff': '39c02d7f',
+    // Flutter 3.50 engine 88a7bf8c and the cell 83198f59 minted over it (Dart a42323e3). selfhost/cdn/experimental_hashes.map.
+    '88a7bf8c': 'a42323e3',
+    '83198f59': 'a42323e3',
   };
 
   /// Throws [DartSdkMismatchException] when the cached Dart SDK does not match
