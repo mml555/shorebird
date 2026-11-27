@@ -75,12 +75,42 @@ class DartSdkCompatibility {
     '83198f59': 'a42323e3',
   };
 
-  /// Throws [DartSdkMismatchException] when the cached Dart SDK does not match
-  /// the engine currently selected by `bin/internal/engine.version`.
+  /// Engines and cells that were published and must never be built against,
+  /// keyed by revision prefix, valued by why (one line, customer-facing).
   ///
-  /// A no-op for engines absent from [expectedDartSdkRevisions].
+  /// Owner decision 2026-11-27: the CLI refuses these, it does not warn. Only
+  /// these four are listed; an engine we merely have not recorded is not
+  /// withdrawn. 64abe347 and 97f91aff stay in [expectedDartSdkRevisions] as a
+  /// record of their Dart SDK pairing, though [validate] refuses them first.
+  /// See selfhost/compatibility.yaml.
+  static const withdrawnRevisions = <String, String>{
+    // Withdrawn: their Dart SDK zips carry a stale revision label.
+    'c9a5421c': 'withdrawn: its Dart SDK zips carry a stale revision label',
+    '04e5ef97': 'withdrawn: its Dart SDK zips carry a stale revision label',
+    // Superseded: a forged two-target patch crashed the app in pre-main
+    // activation on iOS. selfhost/engine/route_b/evidence/
+    // ios-cell-97f91aff-activation-crash/RESULT.md.
+    '64abe347':
+        'superseded: a two-target patch crashed the app at launch on iOS',
+    '97f91aff':
+        'superseded: a two-target patch crashed the app at launch on iOS',
+  };
+
+  /// Throws [WithdrawnEngineException] when the engine currently selected by
+  /// `bin/internal/engine.version` is in [withdrawnRevisions], and
+  /// [DartSdkMismatchException] when the cached Dart SDK does not match it.
+  ///
+  /// A no-op for engines absent from both tables.
   void validate() {
     final engineRevision = shorebirdEnv.shorebirdEngineRevision;
+    for (final entry in withdrawnRevisions.entries) {
+      if (_matches(engineRevision, entry.key)) {
+        throw WithdrawnEngineException(
+          engineRevision: engineRevision,
+          reason: entry.value,
+        );
+      }
+    }
     final expected = _expectedFor(engineRevision);
     if (expected == null) return;
 
@@ -193,4 +223,39 @@ checked up front rather than discovered on a device.
 To install the matching SDK:
 
 $remediation''';
+}
+
+/// {@template withdrawn_engine_exception}
+/// Thrown when the engine or cell named by `bin/internal/engine.version` was
+/// withdrawn or superseded and must not be built against.
+/// {@endtemplate}
+class WithdrawnEngineException implements Exception {
+  /// {@macro withdrawn_engine_exception}
+  WithdrawnEngineException({
+    required this.engineRevision,
+    required this.reason,
+  });
+
+  /// The revision named by `bin/internal/engine.version`.
+  final String engineRevision;
+
+  /// Why it is withdrawn, in one line.
+  final String reason;
+
+  /// The supported cell.
+  static const supportedCell = '83198f59';
+
+  @override
+  String toString() =>
+      '''
+Refusing to build: engine $engineRevision is $reason.
+
+The supported engine cell is $supportedCell. To move to it, install a selfhost-v*
+release whose selfhost/compatibility.yaml names cell $supportedCell, or build the
+CLI from main until one is cut (selfhost/GETTING_STARTED.md, "Install the CLI
+and start the mirror"). Do not edit bin/internal/engine.version by hand.
+
+A patch must be built with its release's Flutter revision, so existing releases
+on $engineRevision cannot be patched. Make a new release on $supportedCell and
+ship it.''';
 }

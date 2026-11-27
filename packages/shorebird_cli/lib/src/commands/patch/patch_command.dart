@@ -1473,6 +1473,8 @@ Could not verify that gen_snapshot supports --load-obfuscation-map for Flutter r
       dartSdkCompatibility.validate();
     } on DartSdkMismatchException catch (error) {
       throw CommandError(message: '$error', exitCode: ExitCode.config);
+    } on WithdrawnEngineException catch (error) {
+      throw CommandError(message: '$error', exitCode: ExitCode.config);
     }
 
     final bundles = <ReleasePlatform, Map<Arch, PatchArtifactBundle>>{};

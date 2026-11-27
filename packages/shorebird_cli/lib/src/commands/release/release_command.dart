@@ -561,6 +561,8 @@ Flutter, it must equal the version of the app that embeds the module.''',
       dartSdkCompatibility.validate();
     } on DartSdkMismatchException catch (error) {
       throw CommandError(message: '$error', exitCode: ExitCode.config);
+    } on WithdrawnEngineException catch (error) {
+      throw CommandError(message: '$error', exitCode: ExitCode.config);
     }
 
     await _assertPatchVerificationChecksSignatures();

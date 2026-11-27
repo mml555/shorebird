@@ -4051,6 +4051,28 @@ A patch cannot change the Flutter version a release was built with. To fix this,
       });
     });
 
+    group('when the engine is withdrawn', () {
+      setUp(() {
+        when(() => dartSdkCompatibility.validate()).thenThrow(
+          WithdrawnEngineException(
+            engineRevision: '97f91aff',
+            reason: 'superseded',
+          ),
+        );
+      });
+
+      test('refuses to build and names the supported cell', () async {
+        await expectLater(
+          () => runWithOverrides(command.run),
+          exitsWithError(
+            message: contains('83198f59'),
+            exitCode: ExitCode.config,
+          ),
+        );
+        verifyNever(() => patcher.buildPatchArtifact());
+      });
+    });
+
     group('engine hydration and the coherence gate', () {
       // The release's revision MUST differ from the local pin. Sharing one
       // constant would make "asserted against the release's revision"
