@@ -119,17 +119,16 @@ dart run tool/route_b_forge_partial_patch.dart --i-know-this-is-a-test-patch \
 
 The tool forges the last target in one of five ways (at most one flag):
 
-| Mode | Last target | Engine 88a7bf8c and later | Engines up to 64abe347 |
+| Mode | Last target | Newest engine | Older engines (each cell says which) |
 | --- | --- | --- | --- |
-| default (append) | a new target with a bogus selector and a copy of the first payload | `REFUSED (target-missing)` | crash |
+| default (append) | a new target with a bogus selector and a copy of the first payload | `REFUSED (target-missing)` | up to 64abe347: crash |
 | `--retarget-last` | the last real target, renamed to a bogus selector, with its own payload | `REFUSED (target-missing)` | `REFUSED (target-missing)` |
-| `--reuse-first-payload` | the last real target, with its own selector and the first target's payload | `REFUSED (invalid-bytecode)`, after `ROUTEB: payload library <uri> is already loaded` | crash |
+| `--reuse-first-payload` | the last real target, with its own selector and the first target's payload | `REFUSED (invalid-bytecode)`, after `ROUTEB: payload library <uri> is already loaded` | up to 64abe347: crash |
 | `--bad-format-last` | the last real target, with its own selector, whose payload's bytecode format version word is `0xFFFFFFFF` | `REFUSED (invalid-bytecode)`, after `ROUTEB: payload does not load, refused: <reason>` (engines after 88a7bf8c) | up to 88a7bf8c: abort before main, `Unsupported Dart bytecode format version` |
 | `--unresolve-last` | the last real target, with its own selector, whose payload's `dart:core` (`--unresolve-uri`) is `dart:cor_` | `REFUSED (invalid-bytecode)`, after `ROUTEB: payload does not load, refused: <reason>` (engines after 88a7bf8c) | up to 88a7bf8c: abort before main, `Unable to find library ...` |
 
-The two load-failure modes (the column headings above do not fit them: the split
-is engines up to 88a7bf8c, which abort before main, against the engine that
-refuses and rolls back):
+The two load-failure modes need an engine whose Dart has
+mml555/dart-sdk-shorebird-lineage#11; engines up to 88a7bf8c abort before main:
 
 - `--bad-format-last` keeps the payload byte for byte except bytes 4 to 7, the
   uint32 format version after the magic. The Dart bytecode binary is
@@ -145,7 +144,11 @@ refuses and rolls back):
   offsets do not move. It refuses if no string equals the URI, if any other
   string contains it (for example `dart:core_patch`), or if the replacement
   string already exists. A raw byte search is not used: it would also hit
-  strings that meet inside the concatenated contents.
+  strings that meet inside the concatenated contents. The tool proves only that
+  the string is in the table, not that the payload reads it as a library
+  reference; if it does not, the boot shows `applied N/N` and the run reports
+  FAIL, never a false PASS. The unit tests build bytecode from the same layout
+  the tool assumes; the check against a compiler-made payload is the device run.
 - Both need two or more targets whose last payload differs from the first (the
   tool checks), keep every earlier target unchanged, and cannot be combined with
   `--retarget-last`, `--reuse-first-payload` or each other. `--bogus-selector`
