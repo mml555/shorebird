@@ -1613,6 +1613,97 @@ can-be-used-as-type:
       });
     }
 
+    group('of a provable _Future (analysis 25)', () {
+      Map<String, Object?> futureImpl({
+        String library = 'dart:async',
+        String cls = '_Future',
+      }) => {
+        ..._ref('instance', 'dart:async', cls: 'Future', member: 'then'),
+        'receiverLibrary': library,
+        'receiverClass': cls,
+      };
+
+      String? at(int version, RouteBRetention r, Map<String, Object?> ref) =>
+          r.refusalForTarget(_analysis([ref], version: version), _target);
+
+      test('is let through, though a TickerFuture has no compiled then', () {
+        expect(at(25, release(tickerThen: false), futureImpl()), isNull);
+      });
+
+      test('is let through when _Future has no compiled then either', () {
+        final noThen = RouteBRetention.parse(
+          _interface,
+          kept: RouteBSnapshotKept.fromProfileJson(
+            routeBProfile({
+              ...classes(tickerThen: false),
+              '_Future': const RouteBProfileClass(
+                '_Future',
+                'dart:async',
+                parent: 'Object',
+                ifaces: ['Future'],
+              ),
+            }),
+          ),
+        );
+        expect(at(25, noThen, futureImpl()), isNull);
+      });
+
+      test('is not believed below analysis 25', () {
+        expect(
+          at(24, release(tickerThen: false), futureImpl()),
+          contains('TickerFuture'),
+        );
+      });
+
+      test('any other receiver on Future.then is not believed', () {
+        for (final ref in [
+          futureImpl(
+            library: 'package:flutter/src/scheduler/ticker.dart',
+            cls: 'TickerFuture',
+          ),
+          futureImpl(library: 'package:app/main.dart'),
+          futureImpl(cls: 'Future'),
+        ]) {
+          expect(
+            at(25, release(tickerThen: false), ref),
+            contains('TickerFuture'),
+            reason: '$ref',
+          );
+        }
+      });
+
+      test('is read only when the document is analysis 25 or later', () {
+        final json = futureImpl();
+        final read = RouteBExternalReference.fromJson(
+          json,
+          readFutureReceiver: true,
+        );
+        expect(read.receiverLibrary, 'dart:async');
+        expect(read.receiverClass, '_Future');
+        expect(
+          RouteBExternalReference.fromJson(
+            json,
+            readReceiver: true,
+          ).receiverClass,
+          isNull,
+        );
+      });
+
+      test('a _Future receiver is not read off any other member', () {
+        final reference = RouteBExternalReference.fromJson({
+          ..._ref(
+            'instance',
+            'dart:async',
+            cls: 'Future',
+            member: 'catchError',
+          ),
+          'receiverLibrary': 'dart:async',
+          'receiverClass': '_Future',
+        }, readFutureReceiver: true);
+        expect(reference.receiverClass, isNull);
+      });
+    });
+
     test('the measurement the old-cell gate relies on is still there', () {
       expect(routeBSdkMeasuredAccepted, contains('dart:async#Future#then'));
       expect(
