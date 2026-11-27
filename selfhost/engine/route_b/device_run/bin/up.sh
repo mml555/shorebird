@@ -22,7 +22,7 @@ curl -fsS -o /dev/null -w 'descriptor %{http_code} %{size_download}\n' "$SHOREBI
 "$SB" --version -v > logs/bootstrap.log 2>&1; echo "bootstrap exit=$?"
 grep -E "Engine .*revision|Flutter .*revision|Flutter [0-9]" logs/bootstrap.log | head -4
 grep -q "revision $ENGINE_REV" logs/bootstrap.log || die "bootstrap did not resolve engine $ENGINE_REV"
-[ -d "$FLUTTER_DIR" ] || die "bootstrap did not fill $FLUTTER_DIR; check FLUTTER_REV against $CLI/bin/internal/flutter.version"
+[ -x "$FLUTTER_DIR/bin/cache/dart-sdk/bin/dart" ] || die "bootstrap did not fill $FLUTTER_DIR (no dart-sdk); FLUTTER_REV must equal $CLI/bin/internal/flutter.version"
 DART="$FLUTTER_DIR/bin/cache/dart-sdk/bin/dart"
 (cd "$CLI/packages/code_push_server" && "$DART" pub get > "$R/logs/server_pubget.log" 2>&1) || die "server pub get"
 nohup env API_KEY="$API_KEY" URL_SIGNING_SECRET="$URL_SIGNING_SECRET" PORT="$SERVER_PORT" PUBLIC_BASE_URL="$BASE" DATA_DIR="$R/data" \
