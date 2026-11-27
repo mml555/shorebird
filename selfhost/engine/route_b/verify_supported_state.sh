@@ -108,7 +108,7 @@ if command -v python3 >/dev/null 2>&1 && python3 -c 'import yaml' >/dev/null 2>&
     YAML_OK=0
   fi
 elif command -v ruby >/dev/null 2>&1; then
-  if ruby -rpsych -rdate -e 'c = Psych::ClassLoader::Restricted.new(%w[Date Time Symbol], [])
+  if ruby -r psych -r date -e 'c = Psych::ClassLoader::Restricted.new(%w[Date Time Symbol], [])
     Psych.parse_stream(File.read(ARGV[0], encoding: "UTF-8")).children.each { |d| Psych::Visitors::ToRuby.new(Psych::ScalarScanner.new(c), c).accept(d) }' \
     "$STATE" >/dev/null 2>&1; then
     YAML_OK=ruby
@@ -150,7 +150,7 @@ case "$YAML_OK" in
   0) bad "a real YAML loader REJECTS the record even though the lint passed" ;;
   ruby) ok "and a real YAML loader accepts it (Ruby Psych's safe loader; PyYAML absent)" ;;
   ruby0) bad "a real YAML loader (Ruby Psych) REJECTS the record even though the lint passed; \
-ruby -rpsych -e 'Psych.parse_stream(File.read(ARGV[0]))' $STATE names the line of a syntax error" ;;
+ruby -r psych -e 'Psych.parse_stream(File.read(ARGV[0]))' $STATE names the line of a syntax error" ;;
   absent) echo "  --      neither PyYAML nor ruby present; the stricter load was skipped (not required)" ;;
 esac
 if [[ -z "$ROOT" ]]; then
