@@ -628,8 +628,11 @@ with `receiverClass` `_Future` instead of the plain `Future.then`. Provable mean
 call resolved statically to an `async` function, static method, extension method or
 `super` method (an `async` body always returns a `_Future`; not a `super` call in a
 mixin, whose target is the `on` type's member, not what the class runs), or one of the
-`Future` constructors that always build a new one: `Future.delayed`, `Future.value`,
-`Future.microtask` and `Future()`. `Future.sync` is not narrowed: it returns the
+`Future` constructors that build a new one and chain no computation's result:
+`Future.value` (its argument is reported as its own entry) and `Future.delayed` with no
+computation. `Future.microtask`, `Future()` and a `Future.delayed` computation are not
+narrowed: the `_Future` completes with the computation's result, and a `TickerFuture`
+result has its `then` called. `Future.sync` is not narrowed: it returns the
 computation's own `Future` when that is one. Awaiting a `_Future` never calls `then`, so the
 entry asks only for what every release has, and a release that allocates a
 `TickerFuture` with no compiled `then` (cut before #291) no longer refuses `await

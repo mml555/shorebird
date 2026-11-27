@@ -147,7 +147,7 @@ const routeBAwaitAnalysisVersion = 24;
 
 /// The first analyzer version that marks an `await` (or `return`) of a
 /// provable `_Future` (a call of a statically resolved `async` function, or
-/// `Future.delayed`, `Future.value`, `Future.microtask`, `Future()`): its
+/// `Future.value`, or `Future.delayed` with no computation): its
 /// `Future.then` entry carries `receiverLibrary` `dart:async` and
 /// `receiverClass` `_Future`. The VM chains a `_Future` without calling
 /// `then`, so the kept check lets that entry through. A document below it

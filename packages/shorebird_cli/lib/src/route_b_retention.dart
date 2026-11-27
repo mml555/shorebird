@@ -436,10 +436,11 @@ class RouteBRetention {
     'dart:async#Future#timeout',
   };
 
-  /// Whether [r] is the `Future.then` the analyzer reports for an `await` of
-  /// a provable `_Future`. Only an `await` carries a receiver on
-  /// `Future.then`, and `RouteBExternalReference.fromJson` keeps a `_Future`
-  /// one only from analysis 25.
+  /// Whether [r] is the `Future.then` the analyzer reports for an `await`,
+  /// `return` or SDK chain (`Completer.complete`, ...) of a provable `_Future`.
+  /// Only those implicit calls of `then` carry a receiver on `Future.then`;
+  /// an explicit `.then` never does. `RouteBExternalReference.fromJson` keeps
+  /// a `_Future` one only from analysis 25.
   static bool _isAwaitOfFutureImpl(RouteBExternalReference r) =>
       r.library == 'dart:async' &&
       r.className == 'Future' &&

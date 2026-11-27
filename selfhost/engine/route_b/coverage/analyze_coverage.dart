@@ -381,8 +381,11 @@ import 'package:kernel/type_environment.dart';
 /// Version 25 narrows the operand that is provably a `_Future`: a call of a
 /// statically resolved `async` function, static method, extension method or
 /// `super` method (not one in a mixin), or of the `Future` constructors that
-/// always return a new `_Future` (`Future.delayed`, `Future.value`,
-/// `Future.microtask`, `Future()`; not `Future.sync`, which returns the
+/// always return a new `_Future` and chain no computation's result
+/// (`Future.value`, whose argument is reported on its own, and
+/// `Future.delayed` with no computation; not `Future.microtask`, `Future()` or
+/// a `Future.delayed` computation, whose result may be a `TickerFuture`, and
+/// not `Future.sync`, which returns the
 /// computation's own `Future`). It reports the entry with `receiverClass` `_Future`, which the
 /// CLI's kept check does not take for a hazard (awaiting a `_Future` never calls
 /// `then`), where 24 reported the unnarrowed `Future.then`, so a release that
@@ -4373,14 +4376,23 @@ class _ExternalUses extends RecursiveVisitor {
     }
     if (target is! Procedure) return false;
     if (target.function.asyncMarker == AsyncMarker.Async) return true;
-    // The constructors of `Future` that always return a new `_Future`:
-    // `Future()` has the empty name. `Future.sync` is not one: it returns the
+    if (!target.isFactory || !_isCore(target, 'dart:async', 'Future')) {
+      return false;
+    }
+    // The constructors of `Future` whose `_Future` never chains a `Future`
+    // this report does not cover. `Future.value(x)` chains `x`, which is
+    // reported as its own entry (see [_thenOf]). A computation's result is
+    // not: `Future.delayed(d, () => ticker)`, `Future.microtask(...)` and
+    // `Future(...)` complete their `_Future` with it, which calls the `then`
+    // of a `TickerFuture` it returns, so they are narrowed only with no
+    // computation (`Future.delayed(d)`). `Future.sync` returns the
     // computation's own `Future` when that is one.
-    return target.isFactory &&
-        _isCore(target, 'dart:async', 'Future') &&
-        const {'', 'delayed', 'value', 'microtask'}.contains(
-          target.name.text,
-        );
+    final args = operand is StaticInvocation ? operand.arguments : null;
+    return switch (target.name.text) {
+      'value' => true,
+      'delayed' => args != null && args.positional.length < 2,
+      _ => false,
+    };
   }
 
   /// The async markers of the function bodies being walked, innermost last:

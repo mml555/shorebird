@@ -114,6 +114,13 @@ Future<void> awaitDelayed() async { await Future.delayed(Duration.zero); }
 Future<void> awaitValue() async { await Future.value(1); }
 Future<void> awaitMicrotask() async { await Future.microtask(() => 1); }
 Future<void> awaitUnnamedCtor() async { await Future(() => 1); }
+Future<void> awaitDelayedTicker(Ticker t) async {
+  await Future.delayed(Duration.zero, () => t);
+}
+Future<void> awaitMicrotaskTicker(Ticker t) async {
+  await Future.microtask(() => t);
+}
+void explicitThen() { fetchAsync().then((_) {}); }
 Future<void> awaitMixed(Ticker t) async { await fetchAsync(); await t; }
 Future<void> awaitTearOff() async { final f = fetchAsync; await f(); }
 Future<int> retAsyncFn() async { return fetchAsync(); }
@@ -313,8 +320,28 @@ void main() {
     check(futureImpl('completerAsyncFn'), 'Completer.complete(async call)');
     check(futureImpl('awaitDelayed'), 'await Future.delayed is a _Future');
     check(futureImpl('awaitValue'), 'await Future.value is a _Future');
-    check(futureImpl('awaitMicrotask'), 'await Future.microtask is a _Future');
-    check(futureImpl('awaitUnnamedCtor'), 'await Future() is a _Future');
+    // A computation's result is chained into the `_Future`, and may be a
+    // `TickerFuture`: not narrowed.
+    check(
+      unnarrowed('awaitMicrotask'),
+      'await Future.microtask(computation) is unnarrowed',
+    );
+    check(
+      unnarrowed('awaitUnnamedCtor'),
+      'await Future(computation) is unnarrowed',
+    );
+    check(
+      unnarrowed('awaitDelayedTicker'),
+      'await Future.delayed(d, () => ticker) is unnarrowed',
+    );
+    check(
+      unnarrowed('awaitMicrotaskTicker'),
+      'await Future.microtask(() => ticker) is unnarrowed',
+    );
+    check(
+      unnarrowed('explicitThen'),
+      'an explicit .then on an async call never carries a receiver',
+    );
     check(
       unnarrowed('awaitSyncTicker'),
       'await Future.sync(() => ticker) is not a _Future: unnarrowed',
