@@ -1,0 +1,4 @@
+Input was required for the following prompt but the CLI is running in a non-interactive context:
+  Which app flavor?
+
+Hint: Pass --flavor=<flavor> to preview a specific flavor without prompting.

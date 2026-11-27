@@ -1,0 +1,261 @@
+patch two exit=0
+3:[WARN] No --track given, so this patch is published to the stable track, which reaches all users. A future release will require --track when it cannot ask. Pass --track=stable to keep publishing to stable, or --track=staging to test the patch before promotin
+121:                                                        This flag cannot be combined with "--analyze-size".
+128:                                                        This flag cannot be combined with "--split-debug-info".
+6252:refuses to start ("Wrong full snapshot version") or, worse, runs and produces
+6256:[route-b] carrying 1 unchanged member(s) that hold a copy of a changed one: package:untab/main.dart#_HomeState._start
+6300:✅ Published Patch 1!
+--- two_download
+19:45:35.583531 [shorebird] Prepared boot of the base release.
+19:45:35.811389 flutter: shape:init=I1
+19:45:35.811459 flutter: shape:future-builder=FB1 null
+19:45:35.841731 [shorebird] Patch check response: PatchCheckResponse { patch_available: true, patch: Some(Patch { number: 1, hash: "34e3a725178f1a6e3feeb610c6d8fd42e496bff10f62d83374e7ed7b3d8c1f32", d
+19:45:35.894722 [shorebird] Patch 1 successfully downloaded. It will be launched when the app next restarts.
+19:45:35.952930 flutter: shape:future-builder=FB1 G1
+19:45:36.036915 flutter: shape:count=1
+19:45:36.052945 flutter: shape:future-builder=FB1 G1
+19:45:36.269177 flutter: shape:future-builder=FB1 G1
+19:45:36.339784 flutter: shape:count=2
+19:45:36.352991 flutter: shape:future-builder=FB1 G1
+19:45:36.568872 flutter: shape:future-builder=FB1 G1
+19:45:36.640770 flutter: shape:count=3
+19:45:36.652504 flutter: shape:future-builder=FB1 G1
+19:45:36.853671 flutter: shape:future-builder=FB1 G1
+19:45:37.072009 flutter: shape:future-builder=FB1 G1
+--- two_boot
+19:46:19.632231 [shorebird] Prepared boot of patch 1.
+19:46:19.665139 ROUTEB: hook entered
+19:46:19.665156 ROUTEB: parsed, targets=3, built-for=ff1d533bf079274f7c94a7349761f3f5
+19:46:19.665174 ROUTEB: running=ff1d533bf079274f7c94a7349761f3f5
+19:46:19.665191 ROUTEB: assert-pool-offset supplied=0xd4a8
+19:46:19.665209 ROUTEB: activated _HomeState._increment in package:untab/main.dart before main
+19:46:19.665244 ROUTEB: activated _HomeState._start in package:untab/main.dart before main
+19:46:19.665485 ROUTEB: activated loadGreeting in package:untab/main.dart before main
+19:46:19.665712 ROUTEB: applied 3/3 targets, entering main
+19:46:19.719871 [shorebird] Launch success for patch 1: prior_ambiguous_attempts=0 (recovery event suppressed: no prior ambiguity)
+19:46:19.724623 flutter: shape:init=I1
+19:46:19.724669 flutter: shape:future-builder=FB1 null
+19:46:19.862059 [shorebird] Patch check response: PatchCheckResponse { patch_available: false, patch: None, rolled_back_patch_numbers: Some([]) }
+19:46:19.910016 flutter: shape:future-builder=FB1 G2
+19:46:19.987497 flutter: shape:count=10
+19:46:19.988867 flutter: shape:future-builder=FB1 G2
+19:46:20.207326 flutter: shape:future-builder=FB1 G2
+19:46:20.289924 flutter: shape:count=20
+19:46:20.306094 flutter: shape:future-builder=FB1 G2
+19:46:20.523918 flutter: shape:future-builder=FB1 G2
+=== retarget-last: forge exit=0
+release id:  ff1d533bf079274f7c94a7349761f3f5
+  1. package:untab/main.dart :: _HomeState._increment
+  2. package:untab/main.dart :: _HomeState._start
+  3. package:untab/main.dart :: selfhost_forged_partial_patch_no_such_selector   <- bogus, must fail
+  1. create patch  2. create ios/aarch64 artifact (hash, hash_signature) and upload  3. promote to stable
+published patch 2 and promoted it to stable.
+--- retarget-last_download
+19:47:15.180516 [shorebird] Prepared boot of patch 1.
+19:47:15.205143 ROUTEB: hook entered
+19:47:15.205203 ROUTEB: parsed, targets=3, built-for=ff1d533bf079274f7c94a7349761f3f5
+19:47:15.205276 ROUTEB: running=ff1d533bf079274f7c94a7349761f3f5
+19:47:15.205366 ROUTEB: assert-pool-offset supplied=0xd4a8
+19:47:15.205520 ROUTEB: activated _HomeState._increment in package:untab/main.dart before main
+19:47:15.205584 ROUTEB: activated _HomeState._start in package:untab/main.dart before main
+19:47:15.205715 ROUTEB: activated loadGreeting in package:untab/main.dart before main
+19:47:15.235970 ROUTEB: applied 3/3 targets, entering main
+19:47:15.273929 [shorebird] Launch success for patch 1: prior_ambiguous_attempts=0 (recovery event suppressed: no prior ambiguity)
+19:47:15.276969 flutter: shape:init=I1
+19:47:15.277585 flutter: shape:future-builder=FB1 null
+19:47:15.329564 [shorebird] Patch check response: PatchCheckResponse { patch_available: true, patch: Some(Patch { number: 2, hash: "416124c751f7a3df1b7aa68eb0245d52844df3e9e475200ab60e0480d2aecebe", d
+19:47:15.445997 flutter: shape:future-builder=FB1 G2
+19:47:15.473876 [shorebird] Patch 2 successfully downloaded. It will be launched when the app next restarts.
+19:47:15.540920 flutter: shape:count=10
+19:47:15.543301 flutter: shape:future-builder=FB1 G2
+19:47:15.758880 flutter: shape:future-builder=FB1 G2
+19:47:15.837424 flutter: shape:count=20
+19:47:15.843070 flutter: shape:future-builder=FB1 G2
+--- retarget-last_boot
+19:47:58.954472 [shorebird] Prepared boot of patch 2.
+19:47:58.959953 ROUTEB: hook entered
+19:47:58.959971 ROUTEB: parsed, targets=3, built-for=ff1d533bf079274f7c94a7349761f3f5
+19:47:58.959987 ROUTEB: running=ff1d533bf079274f7c94a7349761f3f5
+19:47:58.960004 ROUTEB: assert-pool-offset supplied=0xd4a8
+19:47:58.960022 ROUTEB: activated _HomeState._increment in package:untab/main.dart before main
+19:47:58.960043 ROUTEB: activated _HomeState._start in package:untab/main.dart before main
+19:47:58.960092 ROUTEB: target selfhost_forged_partial_patch_no_such_selector not found in package:untab/main.dart
+19:47:58.960117 ROUTEB: target selfhost_forged_partial_patch_no_such_selector in package:untab/main.dart REFUSED (target-missing)
+19:47:58.960135 ROUTEB: applied 2/3 targets, entering main
+19:47:58.960152 ROUTEB: rolled back 2/2 attached targets, main runs the release code
+19:47:58.975140 flutter: shape:init=I1
+19:47:58.976073 flutter: shape:future-builder=FB1 null
+19:47:59.047864 [shorebird] Patch check response: PatchCheckResponse { patch_available: true, patch: Some(Patch { number: 2, hash: "416124c751f7a3df1b7aa68eb0245d52844df3e9e475200ab60e0480d2aecebe", d
+19:47:59.048802 [shorebird] Patch 2 is known bad, skipping.
+19:47:59.129128 flutter: shape:future-builder=FB1 G1
+19:47:59.218623 flutter: shape:count=1
+19:47:59.231299 flutter: shape:future-builder=FB1 G1
+19:47:59.444601 flutter: shape:future-builder=FB1 G1
+19:47:59.520984 flutter: shape:count=2
+--- retarget-last_after
+19:48:37.621734 [shorebird] Prepared boot of patch 1.
+19:48:37.626511 ROUTEB: hook entered
+19:48:37.626529 ROUTEB: parsed, targets=3, built-for=ff1d533bf079274f7c94a7349761f3f5
+19:48:37.626546 ROUTEB: running=ff1d533bf079274f7c94a7349761f3f5
+19:48:37.626564 ROUTEB: assert-pool-offset supplied=0xd4a8
+19:48:37.626591 ROUTEB: activated _HomeState._increment in package:untab/main.dart before main
+19:48:37.626732 ROUTEB: activated _HomeState._start in package:untab/main.dart before main
+19:48:37.626766 ROUTEB: activated loadGreeting in package:untab/main.dart before main
+19:48:37.626812 ROUTEB: applied 3/3 targets, entering main
+19:48:37.640964 [shorebird] Launch success for patch 1: prior_ambiguous_attempts=0 (recovery event suppressed: no prior ambiguity)
+19:48:37.643481 flutter: shape:init=I1
+19:48:37.643515 flutter: shape:future-builder=FB1 null
+19:48:37.781123 flutter: shape:future-builder=FB1 G2
+19:48:37.819711 [shorebird] Patch check response: PatchCheckResponse { patch_available: true, patch: Some(Patch { number: 2, hash: "416124c751f7a3df1b7aa68eb0245d52844df3e9e475200ab60e0480d2aecebe", d
+19:48:37.820839 [shorebird] Patch 2 is known bad, skipping.
+19:48:37.874959 flutter: shape:count=10
+19:48:37.881243 flutter: shape:future-builder=FB1 G2
+19:48:38.097759 flutter: shape:future-builder=FB1 G2
+19:48:38.178062 flutter: shape:count=20
+19:48:38.188246 flutter: shape:future-builder=FB1 G2
+PASS retarget-last
+=== reuse-first-payload: forge exit=0
+release id:  ff1d533bf079274f7c94a7349761f3f5
+  1. package:untab/main.dart :: _HomeState._increment
+  2. package:untab/main.dart :: _HomeState._start
+  3. package:untab/main.dart :: loadGreeting   <- carries target 1's payload, must fail
+  1. create patch  2. create ios/aarch64 artifact (hash, hash_signature) and upload  3. promote to stable
+published patch 3 and promoted it to stable.
+--- reuse-first-payload_download
+19:49:27.709171 [shorebird] Prepared boot of patch 1.
+19:49:27.741746 ROUTEB: hook entered
+19:49:27.759572 ROUTEB: parsed, targets=3, built-for=ff1d533bf079274f7c94a7349761f3f5
+19:49:27.759638 ROUTEB: running=ff1d533bf079274f7c94a7349761f3f5
+19:49:27.759691 ROUTEB: assert-pool-offset supplied=0xd4a8
+19:49:27.759798 ROUTEB: activated _HomeState._increment in package:untab/main.dart before main
+19:49:27.759879 ROUTEB: activated _HomeState._start in package:untab/main.dart before main
+19:49:27.760398 ROUTEB: activated loadGreeting in package:untab/main.dart before main
+19:49:27.761190 ROUTEB: applied 3/3 targets, entering main
+19:49:27.838407 [shorebird] Launch success for patch 1: prior_ambiguous_attempts=0 (recovery event suppressed: no prior ambiguity)
+19:49:27.839324 flutter: shape:init=I1
+19:49:27.841283 flutter: shape:future-builder=FB1 null
+19:49:27.886740 [shorebird] Patch check response: PatchCheckResponse { patch_available: true, patch: Some(Patch { number: 3, hash: "96fb0f6642ef3c65b45fc3ded49624e739c912a7555a76046d42cf5bc1f627e3", d
+19:49:27.945122 [shorebird] Patch 3 successfully downloaded. It will be launched when the app next restarts.
+19:49:28.034789 flutter: shape:future-builder=FB1 G2
+19:49:28.091809 flutter: shape:count=10
+19:49:28.099575 flutter: shape:future-builder=FB1 G2
+19:49:28.315806 flutter: shape:future-builder=FB1 G2
+19:49:28.394104 flutter: shape:count=20
+19:49:28.399682 flutter: shape:future-builder=FB1 G2
+--- reuse-first-payload_boot
+19:50:13.294894 [shorebird] Prepared boot of patch 3.
+19:50:13.349000 ROUTEB: hook entered
+19:50:13.349025 ROUTEB: parsed, targets=3, built-for=ff1d533bf079274f7c94a7349761f3f5
+19:50:13.349043 ROUTEB: running=ff1d533bf079274f7c94a7349761f3f5
+19:50:13.349060 ROUTEB: assert-pool-offset supplied=0xd4a8
+19:50:13.349105 ROUTEB: activated _HomeState._increment in package:untab/main.dart before main
+19:50:13.349156 ROUTEB: activated _HomeState._start in package:untab/main.dart before main
+19:50:13.349202 ROUTEB: payload library file://~/Developer/shorebird-wt/devrun/run-83198f59/work/untab/build/route_b/replacement_0.dart is already loaded
+19:50:13.349576 ROUTEB: target loadGreeting in package:untab/main.dart REFUSED (invalid-bytecode)
+19:50:13.349593 ROUTEB: applied 2/3 targets, entering main
+19:50:13.349611 ROUTEB: rolled back 2/2 attached targets, main runs the release code
+19:50:13.365981 flutter: shape:init=I1
+19:50:13.366015 flutter: shape:future-builder=FB1 null
+19:50:13.441907 [shorebird] Patch check response: PatchCheckResponse { patch_available: true, patch: Some(Patch { number: 3, hash: "96fb0f6642ef3c65b45fc3ded49624e739c912a7555a76046d42cf5bc1f627e3", d
+19:50:13.443124 [shorebird] Patch 3 is known bad, skipping.
+19:50:13.520053 flutter: shape:future-builder=FB1 G1
+19:50:13.612535 flutter: shape:count=1
+19:50:13.619090 flutter: shape:future-builder=FB1 G1
+19:50:13.834663 flutter: shape:future-builder=FB1 G1
+19:50:13.914663 flutter: shape:count=2
+--- reuse-first-payload_after
+19:50:51.776631 [shorebird] Prepared boot of patch 1.
+19:50:51.784768 ROUTEB: hook entered
+19:50:51.784808 ROUTEB: parsed, targets=3, built-for=ff1d533bf079274f7c94a7349761f3f5
+19:50:51.784856 ROUTEB: running=ff1d533bf079274f7c94a7349761f3f5
+19:50:51.784902 ROUTEB: assert-pool-offset supplied=0xd4a8
+19:50:51.784941 ROUTEB: activated _HomeState._increment in package:untab/main.dart before main
+19:50:51.784980 ROUTEB: activated _HomeState._start in package:untab/main.dart before main
+19:50:51.785501 ROUTEB: activated loadGreeting in package:untab/main.dart before main
+19:50:51.785728 ROUTEB: applied 3/3 targets, entering main
+19:50:51.814644 [shorebird] Launch success for patch 1: prior_ambiguous_attempts=0 (recovery event suppressed: no prior ambiguity)
+19:50:51.817434 flutter: shape:init=I1
+19:50:51.817512 flutter: shape:future-builder=FB1 null
+19:50:51.843130 [shorebird] Patch check response: PatchCheckResponse { patch_available: true, patch: Some(Patch { number: 3, hash: "96fb0f6642ef3c65b45fc3ded49624e739c912a7555a76046d42cf5bc1f627e3", d
+19:50:51.844675 [shorebird] Patch 3 is known bad, skipping.
+19:50:51.945101 flutter: shape:future-builder=FB1 G2
+19:50:52.026596 flutter: shape:count=10
+19:50:52.037769 flutter: shape:future-builder=FB1 G2
+19:50:52.256708 flutter: shape:future-builder=FB1 G2
+19:50:52.328120 flutter: shape:count=20
+19:50:52.337153 flutter: shape:future-builder=FB1 G2
+PASS reuse-first-payload
+=== append: forge exit=0
+release id:  ff1d533bf079274f7c94a7349761f3f5
+  1. package:untab/main.dart :: _HomeState._increment
+  2. package:untab/main.dart :: _HomeState._start
+  3. package:untab/main.dart :: loadGreeting
+  4. package:untab/main.dart :: selfhost_forged_partial_patch_no_such_selector   <- bogus, must fail
+  1. create patch  2. create ios/aarch64 artifact (hash, hash_signature) and upload  3. promote to stable
+published patch 4 and promoted it to stable.
+--- append_download
+19:51:42.926048 [shorebird] Prepared boot of patch 1.
+19:51:42.970516 ROUTEB: hook entered
+19:51:42.970538 ROUTEB: parsed, targets=3, built-for=ff1d533bf079274f7c94a7349761f3f5
+19:51:42.970604 ROUTEB: running=ff1d533bf079274f7c94a7349761f3f5
+19:51:42.998213 ROUTEB: assert-pool-offset supplied=0xd4a8
+19:51:42.999334 ROUTEB: activated _HomeState._increment in package:untab/main.dart before main
+19:51:42.999383 ROUTEB: activated _HomeState._start in package:untab/main.dart before main
+19:51:42.999430 ROUTEB: activated loadGreeting in package:untab/main.dart before main
+19:51:42.999485 ROUTEB: applied 3/3 targets, entering main
+19:51:43.092315 [shorebird] Launch success for patch 1: prior_ambiguous_attempts=0 (recovery event suppressed: no prior ambiguity)
+19:51:43.095769 flutter: shape:init=I1
+19:51:43.095940 flutter: shape:future-builder=FB1 null
+19:51:43.144048 [shorebird] Patch check response: PatchCheckResponse { patch_available: true, patch: Some(Patch { number: 4, hash: "2f3e9b7793cc355500619fb77f136a202b9a31e1b6eac02b28fd086527bc5d12", d
+19:51:43.198918 [shorebird] Patch 4 successfully downloaded. It will be launched when the app next restarts.
+19:51:43.240714 flutter: shape:future-builder=FB1 G2
+19:51:43.336553 flutter: shape:count=10
+19:51:43.339968 flutter: shape:future-builder=FB1 G2
+19:51:43.555998 flutter: shape:future-builder=FB1 G2
+19:51:43.638424 flutter: shape:count=20
+19:51:43.639829 flutter: shape:future-builder=FB1 G2
+--- append_boot
+19:52:26.598839 [shorebird] Prepared boot of patch 4.
+19:52:26.613628 ROUTEB: hook entered
+19:52:26.613728 ROUTEB: parsed, targets=4, built-for=ff1d533bf079274f7c94a7349761f3f5
+19:52:26.613784 ROUTEB: running=ff1d533bf079274f7c94a7349761f3f5
+19:52:26.613844 ROUTEB: assert-pool-offset supplied=0xd4a8
+19:52:26.613914 ROUTEB: activated _HomeState._increment in package:untab/main.dart before main
+19:52:26.613977 ROUTEB: activated _HomeState._start in package:untab/main.dart before main
+19:52:26.614981 ROUTEB: activated loadGreeting in package:untab/main.dart before main
+19:52:26.615247 ROUTEB: target selfhost_forged_partial_patch_no_such_selector not found in package:untab/main.dart
+19:52:26.615686 ROUTEB: target selfhost_forged_partial_patch_no_such_selector in package:untab/main.dart REFUSED (target-missing)
+19:52:26.615840 ROUTEB: applied 3/4 targets, entering main
+19:52:26.615954 ROUTEB: rolled back 3/3 attached targets, main runs the release code
+19:52:26.705531 flutter: shape:init=I1
+19:52:26.706733 flutter: shape:future-builder=FB1 null
+19:52:26.856562 [shorebird] Patch check response: PatchCheckResponse { patch_available: true, patch: Some(Patch { number: 4, hash: "2f3e9b7793cc355500619fb77f136a202b9a31e1b6eac02b28fd086527bc5d12", d
+19:52:26.861971 flutter: shape:future-builder=FB1 G1
+19:52:26.862045 [shorebird] Patch 4 is known bad, skipping.
+19:52:26.962997 flutter: shape:count=1
+19:52:26.975485 flutter: shape:future-builder=FB1 G1
+19:52:27.191854 flutter: shape:future-builder=FB1 G1
+--- append_after
+19:53:05.018500 [shorebird] Prepared boot of patch 1.
+19:53:05.059412 ROUTEB: hook entered
+19:53:05.105182 ROUTEB: parsed, targets=3, built-for=ff1d533bf079274f7c94a7349761f3f5
+19:53:05.105373 ROUTEB: running=ff1d533bf079274f7c94a7349761f3f5
+19:53:05.105593 ROUTEB: assert-pool-offset supplied=0xd4a8
+19:53:05.105660 ROUTEB: activated _HomeState._increment in package:untab/main.dart before main
+19:53:05.105914 ROUTEB: activated _HomeState._start in package:untab/main.dart before main
+19:53:05.106069 ROUTEB: activated loadGreeting in package:untab/main.dart before main
+19:53:05.118427 ROUTEB: applied 3/3 targets, entering main
+19:53:05.170258 [shorebird] Launch success for patch 1: prior_ambiguous_attempts=0 (recovery event suppressed: no prior ambiguity)
+19:53:05.173159 flutter: shape:init=I1
+19:53:05.173230 flutter: shape:future-builder=FB1 null
+19:53:05.216493 [shorebird] Patch check response: PatchCheckResponse { patch_available: true, patch: Some(Patch { number: 4, hash: "2f3e9b7793cc355500619fb77f136a202b9a31e1b6eac02b28fd086527bc5d12", d
+19:53:05.217922 [shorebird] Patch 4 is known bad, skipping.
+19:53:05.340733 flutter: shape:future-builder=FB1 G2
+19:53:05.414574 flutter: shape:count=10
+19:53:05.430152 flutter: shape:future-builder=FB1 G2
+19:53:05.643769 flutter: shape:future-builder=FB1 G2
+19:53:05.716481 flutter: shape:count=20
+19:53:05.727610 flutter: shape:future-builder=FB1 G2
+PASS append
+no crash reports since 2026-11-26-194349
+FORCED_PARTIAL_PASS

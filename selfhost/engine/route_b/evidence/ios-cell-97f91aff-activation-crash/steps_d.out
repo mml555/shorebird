@@ -1,0 +1,46 @@
+Flutter • revision 231188569ae065ac9a68417ba2d7450b2c742916
+Engine • revision 97f91aff85e1db8b724afb51ff0e91466b78764c
+UP_DONE
+forge rc=0
+  1. create patch  2. create ios/aarch64 artifact (hash, hash_signature) and upload  3. promote to stable
+published patch 4 and promoted it to stable.
+--- download4
+16:24:40.846215 [shorebird] Prepared boot of patch 1.
+16:24:40.852956 [ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: hook entered
+16:24:40.852973 [ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: parsed, targets=1, built-for=ff1d533bf079274f7c94a7349761f3f5
+16:24:40.852990 [ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: running=ff1d533bf079274f7c94a7349761f3f5
+16:24:40.853244 [ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: assert-pool-offset supplied=0xd4a8
+16:24:40.853581 ROUTEB: activated loadGreeting in package:untab/main.dart before main
+16:24:40.853804 [ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: applied 1/1 targets, entering main
+16:24:40.870154 [shorebird] Launch success for patch 1: prior_ambiguous_attempts=0 (recovery event suppressed: no prior ambiguity)
+16:24:40.871054 flutter: shape:init=I1
+16:24:40.871112 flutter: shape:future-builder=FB1 null
+16:24:40.924913 [shorebird] Patch check response: PatchCheckResponse { patch_available: true, patch: Some(Patch { number: 4, hash: "482f4dc3b95046c1736f5123e8bf7fb52843d0e430c5f81a27b02b8c5f9b8479", d
+16:24:41.024414 flutter: shape:future-builder=FB1 G2
+16:24:41.108091 [shorebird] Patch 4 successfully downloaded. It will be launched when the app next restarts.
+16:24:41.125583 flutter: shape:future-builder=FB1 G2
+--- partial4
+16:25:15.719730 [shorebird] Prepared boot of patch 4.
+16:25:15.733302 [ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: hook entered
+16:25:15.733354 [ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: parsed, targets=2, built-for=ff1d533bf079274f7c94a7349761f3f5
+16:25:15.733390 [ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: running=ff1d533bf079274f7c94a7349761f3f5
+16:25:15.759073 [ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: assert-pool-offset supplied=0xd4a8
+16:25:15.780653 ROUTEB: activated loadGreeting in package:untab/main.dart before main
+Nov 26 16:25:15.779513 ReportCrash[346] <Info>: osa_update: Pid 75832 'Runner' CORPSE: Parsing KCData
+Nov 26 16:25:15.779663 ReportCrash[346] <Info>: osa_update: Pid 75832 'Runner' CORPSE: Extracting
+Nov 26 16:25:16.063732 runningboardd(RunningBoard)[33] <Notice>: [application<dev.selfhost.untab>:75832] termination reported by launchd (2, 11, 11)
+Nov 26 16:25:16.121085 SpringBoard(FrontBoard)[62] <Notice>: [application<dev.selfhost.untab>:75832] Process exited: <RBSProcessExitContext| specific, status:<RBSProcessExitStatus| domain:signal(2) co
+--- after4
+16:25:46.084840 [shorebird] Prepared boot of patch 4.
+16:25:46.152420 [ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: hook entered
+16:25:46.152587 [ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: parsed, targets=2, built-for=ff1d533bf079274f7c94a7349761f3f5
+16:25:46.152846 [ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: running=ff1d533bf079274f7c94a7349761f3f5
+16:25:46.153157 [ERROR:flutter/shell/common/shorebird/shorebird.cc(190)] ROUTEB: assert-pool-offset supplied=0xd4a8
+16:25:46.153330 ROUTEB: activated loadGreeting in package:untab/main.dart before main
+Nov 26 16:25:46.153396 ReportCrash[346] <Info>: osa_update: Pid 75841 'Runner' CORPSE: Parsing KCData
+Nov 26 16:25:46.179382 ReportCrash[346] <Info>: osa_update: Pid 75841 'Runner' CORPSE: Extracting
+Nov 26 16:25:46.241215 runningboardd(RunningBoard)[33] <Notice>: [application<dev.selfhost.untab>:75841] termination reported by launchd (2, 11, 11)
+Nov 26 16:25:46.244732 SpringBoard(FrontBoard)[62] <Notice>: [application<dev.selfhost.untab>:75841] Process exited: <RBSProcessExitContext| specific, status:<RBSProcessExitStatus| domain:signal(2) co
+~/Developer/shorebird-wt/devrun/run-97f91aff/logs/detach4/crash/Runner-2026-11-26-162546.ips
+~/Developer/shorebird-wt/devrun/run-97f91aff/logs/detach4/crash/Runner-2026-11-26-162516.ips
+STEPS_D_DONE

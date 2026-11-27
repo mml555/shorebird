@@ -1,0 +1,14 @@
+route_b_forge_partial_patch: SELFHOST TEST INSTRUMENT. It publishes a patch that is built to fail.
+container:   ~/Developer/shorebird-wt/devrun/run-97f91aff/work/untab/build/route_b/patch.sbrbptch (1882 bytes)
+forged:      ~/Developer/shorebird-wt/devrun/run-97f91aff/work/untab/build/route_b/patch.sbrbptch.partial4 (2018 bytes)
+release id:  ff1d533bf079274f7c94a7349761f3f5
+targets:
+  1. package:untab/main.dart :: loadGreeting
+  2. package:untab/main.dart :: selfhost_forged_partial_patch_no_such_selector   <- bogus, must fail
+sha256:      482f4dc3b95046c1736f5123e8bf7fb52843d0e430c5f81a27b02b8c5f9b8479
+signature:   verified against ~/Developer/shorebird-wt/devrun/run-97f91aff/keys/public.pem
+will publish to http://10.0.0.115:18290:
+  app bf5b33a6-6fd9-e600-afa2-5db7af10679a, release version 1.0.0+78, channel stable (must already exist)
+  The server does not record a release build id, so CHECK THAT ff1d533bf079274f7c94a7349761f3f5 is the build id of release 1.0.0+78: the tool cannot.
+  1. create patch  2. create ios/aarch64 artifact (hash, hash_signature) and upload  3. promote to stable
+published patch 4 and promoted it to stable.
