@@ -8,9 +8,9 @@ selfhost/compatibility.yaml did, from #134 until #187. This loads every tracked
 *.yaml and *.yml file (every document in it) with PyYAML's safe loader;
 an application tag such as Compose's `!reset` loads as its plain value.
 
-Without PyYAML (the stock macOS python3 has none) it parses each file with
-Ruby's Psych instead, so a local run still catches a file that is not YAML.
-That parse checks syntax only; CI, which has PyYAML, also builds each document.
+Without PyYAML (the stock macOS python3 has none) it loads each file with
+Ruby's Psych instead (its safe loader, aliases allowed), so a local run still
+catches a file that is not YAML. CI has PyYAML.
 
 Usage: tool/check_yaml_parses.py   (from anywhere inside the checkout)
 Exit:  0 all load, 1 one or more do not, 2 git, or both PyYAML and ruby, missing.
@@ -33,23 +33,31 @@ except (OSError, subprocess.CalledProcessError) as e:
 
 files = [n.decode() for n in names.split(b"\0") if n]
 
-# One ruby process parses every file: prints the ::error lines, then the count.
-_RUBY_PARSE = r"""
+# One ruby process loads every file: prints the ::error lines, then the count.
+# Psych's restricted loader is what Psych.safe_load uses, built by hand because
+# the system ruby (2.6) has no safe_load_stream. An unknown application tag such
+# as `!reset` loads as its plain value, as on the PyYAML path; a `!ruby/` tag
+# is refused.
+_RUBY_LOAD = r"""
 require "psych"
+require "date"
 top = ARGV.shift
+classes = Psych::ClassLoader::Restricted.new(%w[Date Time Symbol], [])
 bad = 0
 ARGV.each do |name|
   begin
-    Psych.parse_stream(File.read(File.join(top, name), encoding: "UTF-8"), filename: name)
-  rescue Psych::SyntaxError, ArgumentError, EncodingError => e
+    Psych.parse_stream(File.read(File.join(top, name), encoding: "UTF-8"), filename: name).children.each do |doc|
+      Psych::Visitors::ToRuby.new(Psych::ScalarScanner.new(classes), classes).accept(doc)
+    end
+  rescue Psych::Exception, ArgumentError, EncodingError => e
     bad += 1
     puts "::error file=#{name}::does not load as YAML: #{e.message.split.join(" ")}"
   rescue SystemCallError => e
     bad += 1
-    puts "::error file=#{name}::cannot be read: #{e.message}"
+    puts "::error file=#{name}::cannot be read: #{e.message.sub(/ @ .*/m, "")}"
   end
 end
-puts "#{ARGV.size - bad} of #{ARGV.size} tracked YAML files parse (Ruby Psych; PyYAML is not installed)"
+puts "#{ARGV.size - bad} of #{ARGV.size} tracked YAML files load (Ruby Psych; PyYAML is not installed)"
 exit(bad.zero? ? 0 : 1)
 """
 
@@ -58,7 +66,7 @@ if yaml is None:
     if ruby is None:
         print("check_yaml_parses: neither PyYAML (python3 -m pip install pyyaml) nor ruby is installed", file=sys.stderr)
         sys.exit(2)
-    sys.exit(subprocess.run([ruby, "-e", _RUBY_PARSE, top, *files]).returncode)
+    sys.exit(subprocess.run([ruby, "-e", _RUBY_LOAD, top, *files]).returncode)
 
 
 class _Loader(yaml.SafeLoader):

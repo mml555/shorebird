@@ -87,7 +87,7 @@ val() { sed -nE "s/^[[:space:]]*$1:[[:space:]]*([^[:space:]#]+).*/\1/p" "$STATE"
 #
 # When PyYAML IS present a real load runs as well, so the stronger check is not
 # lost -- it is simply no longer required to run at all. Without PyYAML, Ruby's
-# Psych parses it when ruby is on PATH (it is on stock macOS): a syntax-only parse.
+# Psych loads it when ruby is on PATH (it is on stock macOS).
 LINT_OUT=""
 if command -v python3 >/dev/null 2>&1; then
   if LINT_OUT=$(python3 "$HERE/lib/record_lint.py" "$STATE" 2>&1); then
@@ -95,24 +95,27 @@ if command -v python3 >/dev/null 2>&1; then
   else
     PARSE_OK=0
   fi
-  if python3 -c 'import yaml' >/dev/null 2>&1; then
-    if python3 -c 'import sys,yaml; yaml.safe_load(open(sys.argv[1]))' "$STATE" 2>/dev/null; then
-      YAML_OK=1
-    else
-      YAML_OK=0
-    fi
-  elif command -v ruby >/dev/null 2>&1; then
-    # No PyYAML (stock macOS python3): Ruby's Psych parses it instead.
-    if ruby -rpsych -e 'Psych.parse_stream(File.read(ARGV[0]))' "$STATE" >/dev/null 2>&1; then
-      YAML_OK=ruby
-    else
-      YAML_OK=ruby0
-    fi
-  else
-    YAML_OK=absent
-  fi
 else
   PARSE_OK=nopython
+fi
+# The stricter load: PyYAML, else Ruby's Psych (on stock macOS) with the
+# restricted loader Psych.safe_load uses (the system ruby 2.6 has no
+# safe_load_stream). Not required; it runs when it can.
+if command -v python3 >/dev/null 2>&1 && python3 -c 'import yaml' >/dev/null 2>&1; then
+  if python3 -c 'import sys,yaml; yaml.safe_load(open(sys.argv[1]))' "$STATE" 2>/dev/null; then
+    YAML_OK=1
+  else
+    YAML_OK=0
+  fi
+elif command -v ruby >/dev/null 2>&1; then
+  if ruby -rpsych -rdate -e 'c = Psych::ClassLoader::Restricted.new(%w[Date Time Symbol], [])
+    Psych.parse_stream(File.read(ARGV[0], encoding: "UTF-8")).children.each { |d| Psych::Visitors::ToRuby.new(Psych::ScalarScanner.new(c), c).accept(d) }' \
+    "$STATE" >/dev/null 2>&1; then
+    YAML_OK=ruby
+  else
+    YAML_OK=ruby0
+  fi
+else
   YAML_OK=absent
 fi
 
@@ -145,9 +148,9 @@ esac
 case "$YAML_OK" in
   1) ok "and a real YAML loader accepts it (PyYAML present)" ;;
   0) bad "a real YAML loader REJECTS the record even though the lint passed" ;;
-  ruby) ok "and a real YAML parser accepts it (Ruby Psych; PyYAML absent)" ;;
-  ruby0) bad "a real YAML parser (Ruby Psych) REJECTS the record even though the lint passed; \
-ruby -rpsych -e 'Psych.parse_stream(File.read(ARGV[0]))' $STATE names the line" ;;
+  ruby) ok "and a real YAML loader accepts it (Ruby Psych's safe loader; PyYAML absent)" ;;
+  ruby0) bad "a real YAML loader (Ruby Psych) REJECTS the record even though the lint passed; \
+ruby -rpsych -e 'Psych.parse_stream(File.read(ARGV[0]))' $STATE names the line of a syntax error" ;;
   absent) echo "  --      neither PyYAML nor ruby present; the stricter load was skipped (not required)" ;;
 esac
 if [[ -z "$ROOT" ]]; then
