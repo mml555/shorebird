@@ -377,7 +377,19 @@ import 'package:kernel/type_environment.dart';
 /// `Future.forEach`, `Future.microtask`, `timeout(onTimeout:)`,
 /// `Stream.asyncMap`), `StreamController.addStream`, and any other SDK or
 /// package code that calls `then` on a future it was given.
-const analysisVersion = 24;
+///
+/// Version 25 narrows the operand that is provably a `_Future`: a call of a
+/// statically resolved `async` function, static method, extension method or
+/// `super` method, or of the `Future` constructors that return a `_Future`
+/// (`Future.delayed`, `Future.value`, `Future.sync`, `Future.microtask`,
+/// `Future()`). It reports the entry with `receiverClass` `_Future`, which the
+/// CLI's kept check does not take for a hazard (awaiting a `_Future` never calls
+/// `then`), where 24 reported the unnarrowed `Future.then`, so a release that
+/// allocates a `TickerFuture` with no compiled `then` no longer refuses
+/// `await fetch()`. An `await` of an interface call (`obj.fetch()`, which an
+/// override may answer with another `Future`), a variable, a parameter or a
+/// field is reported as in 24. A document below 25 never has the narrowing.
+const analysisVersion = 25;
 
 /// How the VM names a member of a given kind. ONE place, so no caller has to
 /// know it. Verbatim from gen_target_manifest.dart.
@@ -4334,6 +4346,34 @@ class _ExternalUses extends RecursiveVisitor {
     return cls;
   }
 
+  /// Whether [operand] is a call whose result is a `_Future` whatever the
+  /// program does (analysis version 25): the callee is resolved statically, so
+  /// no override can answer with another `Future`, and it is an `async`
+  /// function (which always returns a `_Future`) or a `Future` constructor
+  /// that returns one. An interface call is not: `obj.fetch()` can reach an
+  /// override that returns a `TickerFuture`.
+  static bool _isProvablyFuture(Expression operand) {
+    final Member target;
+    if (operand is StaticInvocation) {
+      target = operand.target;
+    } else if (operand is SuperMethodInvocation) {
+      final t = operand.interfaceTarget;
+      if (t == null) return false;
+      target = t;
+    } else {
+      return false;
+    }
+    if (target is! Procedure) return false;
+    if (target.function.asyncMarker == AsyncMarker.Async) return true;
+    // The constructors of `Future` that return a `_Future`: `Future()` has the
+    // empty name.
+    return target.isFactory &&
+        _isCore(target, 'dart:async', 'Future') &&
+        const {'', 'delayed', 'value', 'sync', 'microtask'}.contains(
+          target.name.text,
+        );
+  }
+
   /// The async markers of the function bodies being walked, innermost last:
   /// only a `return e` in an `async` body hands `e` to the completer.
   final _asyncMarkers = <AsyncMarker>[];
@@ -4358,6 +4398,16 @@ class _ExternalUses extends RecursiveVisitor {
       return;
     }
     final context = staticTypes;
+    if (context != null && _isProvablyFuture(operand)) {
+      final futureImpl = context.typeEnvironment.coreTypes.index.tryGetClass(
+        'dart:async',
+        '_Future',
+      );
+      if (futureImpl != null) {
+        _sdk('dart:async', 'Future', 'then', receiver: futureImpl);
+        return;
+      }
+    }
     DartType? type;
     if (context != null) {
       try {

@@ -622,6 +622,24 @@ includes `_Future.then`, though awaiting a `_Future` never calls it; a release t
 compiled no `_Future.then` is not realistic (the framework calls `.then`), and the
 old-cell gate leaves `_Future` out only because it asks about the hazard alone.
 
+**Awaits of a `_Future` (analysis 25).** An `await` (or `return`, `Completer.complete`,
+`ignore()` and the other chains above) whose operand is provably a `_Future` is reported
+with `receiverClass` `_Future` instead of the plain `Future.then`. Provable means a
+call resolved statically to an `async` function, static method, extension method or
+`super` method (an `async` body always returns a `_Future`), or one of the `Future`
+constructors that return one: `Future.delayed`, `Future.value`, `Future.sync`,
+`Future.microtask` and `Future()`. Awaiting a `_Future` never calls `then`, so the
+entry asks only for what every release has, and a release that allocates a
+`TickerFuture` with no compiled `then` (cut before #291) no longer refuses `await
+fetch()`. Not narrowed: an interface call (`obj.fetch()`, since an override may return
+another `Future`), a variable, parameter, field or tear-off call, and a non-`async`
+function that returns a `Future`; those are reported as in 24. This is an analyzer-only
+change: `routeBCompatibilityRevision` does not move, so patches to releases built on an
+older cell of the same engine gain the narrowing once a cell carrying analysis 25 is
+the supported one, and the release's own retention checks still decide every patch. The
+CLI learns version 25 (`knownRouteBAnalysisVersions`) before the cell that writes it is
+minted.
+
 **Not covered (follow-up issue).** A `Future` returned by a callback (`then`,
 `whenComplete`, `catchError`, `Future.delayed`, `Future.doWhile`, `Future.forEach`,
 `Future.microtask`, `Future.sync`'s computation, `timeout(onTimeout:)`,
@@ -633,7 +651,7 @@ A cell below 24 cannot see any of this, so the CLI refuses its patches (unless
 `--allow-unchecked-sdk-calls`, or when the release has no readable interface) only when
 the release's snapshot shows the hazard (a `Future` subtype other than `_Future` with
 no compiled `then`); otherwise they are unaffected. The analyzer is in the cell
-(`route_b_analyze.aot`), so analysis 24 reaches a release only through a re-cut cell;
+(`route_b_analyze.aot`), so analysis 24 (and 25) reaches a release only through a re-cut cell;
 the engine and the rest of the compiler archive do not change.
 
 A cell whose analyzer writes version 24 needs a CLI that knows 24: an older CLI

@@ -70,7 +70,7 @@ const supportedRouteBAnalysisVersion = 11;
 /// Each version's absent fields keep their own meaning; see
 /// [RouteBLowering.privateConstructions] for the asymmetry that matters.
 const knownRouteBAnalysisVersions = {
-  11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, //
+  11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, //
 };
 
 /// The first analyzer version that compares fields, `const`s, constructors and

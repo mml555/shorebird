@@ -94,6 +94,31 @@ void ignPlain(Future<int> f) { f.ignore(); }
 void tearIgn(Ticker t) { final f = t.ignore; f(); }
 void tearErr(Ticker t) { final f = t.onError<Object>; f((e, s) => 1); }
 void onErr(Ticker t) { t.onError<Object>((e, s) => 1); }
+Future<int> fetchAsync() async => 1;
+Future<int> fetchSync(Ticker t) => t;
+class Svc {
+  static Future<int> stat() async => 1;
+  Future<int> inst() async => 1;
+}
+class SvcSub extends Svc {
+  Future<void> viaSuper() async { await super.inst(); }
+}
+extension SvcExt on Svc { Future<int> ext() async => 1; }
+Future<void> awaitAsyncFn() async { await fetchAsync(); }
+Future<void> awaitStatic() async { await Svc.stat(); }
+Future<void> awaitExt(Svc s) async { await s.ext(); }
+Future<void> awaitInstance(Svc s) async { await s.inst(); }
+Future<void> awaitSyncFn(Ticker t) async { await fetchSync(t); }
+Future<void> awaitVariable(Ticker t) async { final f = fetchAsync(); await f; }
+Future<void> awaitDelayed() async { await Future.delayed(Duration.zero); }
+Future<void> awaitValue() async { await Future.value(1); }
+Future<void> awaitSyncCtor() async { await Future.sync(() => 1); }
+Future<void> awaitMicrotask() async { await Future.microtask(() => 1); }
+Future<void> awaitUnnamedCtor() async { await Future(() => 1); }
+Future<void> awaitMixed(Ticker t) async { await fetchAsync(); await t; }
+Future<void> awaitTearOff() async { final f = fetchAsync; await f(); }
+Future<int> retAsyncFn() async { return fetchAsync(); }
+void completerAsyncFn() { Completer<int>().complete(fetchAsync()); }
 void main() {}
 ''';
 
@@ -177,7 +202,7 @@ void main() {
     final core = CoreTypes(c);
     final env = TypeEnvironment(core, ClassHierarchy(c, core));
 
-    check(analysisVersion == 24, 'analysis version is 24');
+    check(analysisVersion == 25, 'analysis version is 25');
 
     List<Map<String, Object?>> then(String n) =>
         _then(c, env, n, world: FutureWorld(env));
@@ -265,6 +290,37 @@ void main() {
     check(exactly('onErr', {'Ticker'}), 'Future.onError() names the receiver');
     check(exactly('tearIgn', {'Ticker'}), 'a tear-off of ignore names it');
     check(exactly('tearErr', {'Ticker'}), 'a tear-off of onError names it');
+    bool futureImpl(String n) =>
+        then(n).length == 1 &&
+        then(n).single['receiverClass'] == '_Future' &&
+        then(n).single['receiverLibrary'] == 'dart:async';
+    check(futureImpl('awaitAsyncFn'), 'await of an async function: _Future');
+    check(futureImpl('awaitStatic'), 'await of an async static method');
+    check(futureImpl('awaitExt'), 'await of an async extension method');
+    check(futureImpl('viaSuper'), 'await of an async super method call');
+    check(futureImpl('retAsyncFn'), 'return of an async function call');
+    check(futureImpl('completerAsyncFn'), 'Completer.complete(async call)');
+    check(futureImpl('awaitDelayed'), 'await Future.delayed is a _Future');
+    check(futureImpl('awaitValue'), 'await Future.value is a _Future');
+    check(futureImpl('awaitSyncCtor'), 'await Future.sync is a _Future');
+    check(futureImpl('awaitMicrotask'), 'await Future.microtask is a _Future');
+    check(futureImpl('awaitUnnamedCtor'), 'await Future() is a _Future');
+    check(
+      unnarrowed('awaitInstance'),
+      'await of an interface call stays unnarrowed: an override may differ',
+    );
+    check(
+      unnarrowed('awaitSyncFn'),
+      'await of a non-async function returning Future stays unnarrowed',
+    );
+    check(unnarrowed('awaitVariable'), 'await of a variable stays unnarrowed');
+    check(unnarrowed('awaitTearOff'), 'await of a tear-off call is unnarrowed');
+    check(
+      then('awaitMixed').length == 2 &&
+          then('awaitMixed').any((e) => e['receiverClass'] == '_Future') &&
+          then('awaitMixed').any((e) => e['receiverClass'] == 'Ticker'),
+      'one provable await and one Ticker await report both',
+    );
     check(
       _then(c, env, 'iface').length == 1 &&
           !_then(c, env, 'iface').single.containsKey('receiverClass'),
