@@ -156,7 +156,7 @@ lineage:
   # as is the fallback engine f0a7d291. The compiler archive is this cell's own (36e59039..., 19947818 B; route_b_analyze.aot 6db21b87..., analysis version 24, unchanged).
   # The selector's parent is the engine commit directly; the delta is bin/internal/engine.version alone. Selected by PR #307 (merge 910ff250; it also contains #308, a
   # device_run harness fix), which also added '88a7bf8c' and '83198f59' -> 'a42323e3' to DartSdkCompatibility. iPhone-run 2026-11-26 (forced partial patches: refused and rolled
-  # back as a whole, no crash; see cells.83198f59....physically_qualified). Android is NOT yet device-run on this cell (TODO(android-83198f59)). See PROMOTION_83198f59.md.
+  # back as a whole, no crash; see cells.83198f59....physically_qualified). Android is device-run too, signed, 2026-11-26 (evidence/android-cell-83198f59/RESULT.md). See PROMOTION_83198f59.md.
   # WITHDRAWN and SUPERSEDED cells between 9995f957 and this one, never overwritten and still in the protection groups and the hash map: engine c9a5421ce57c8f9091462400fbc606ea0f7364ac
   # and cell 04e5ef97bb563da87cf32dc1380bc632a14d7bd3 were withdrawn (their Dart SDK zips carried a stale revision label; fixed by shorebird #301 and lineage #9). Cell
   # 97f91aff85e1db8b724afb51ff0e91466b78764c (engine 64abe347da9ba3901b8c235aaf1f97dcda7f28eb, PR #303, Linux promotion passed 2026-11-26) is SUPERSEDED: on the iPhone a forged
@@ -503,8 +503,7 @@ cells:
     status: >-
       SELECTED -- this is lineage.cell_address (moved here 2026-11-27). A new engine, 88a7bf8c (Dart a42323e3). The promotion chain ran once on ci-build in workspace promo-83198f59
       (CHAIN_DONE 2026-11-27T01:14:22Z), then R12 arm B (ARMB_DONE 01:49:10Z); step 7's harness verdict was FAIL on one check by design (arm 3 exited 0 where 64 was expected: the
-      discovery control plane has one release), and check_rp_arms reports ok. iPhone-run 2026-11-26 (forced partial patches). Android is NOT yet device-run on this cell
-      (TODO(android-83198f59): replace this sentence with the Android run's result).
+      discovery control plane has one release), and check_rp_arms reports ok. iPhone-run 2026-11-26 (forced partial patches) and Android-run 2026-11-26 (signed patches 1 and 2, rollback of patch 2 to patch 1; evidence/android-cell-83198f59/RESULT.md).
     # Minted with helpers 0100bb3f (the merge of #305) over the published bytes of engine 88a7bf8c (mml555/shorebird-flutter, the merge of #23, release engine-88a7bf8c... in parts):
     # route-b-cell-v2, macos-ios-android, 30 members; descriptor cell_manifests/83198f59....v2 (4141 B, sha256 83198f598d638fb2b5848f64bb377f504185a3da878269ab7fbc77bf2bf50afe).
     # Compiler archive route-b-compiler-darwin-arm64.zip 36e59039... (19947818 B), audit_route_b_compiler.sh clean. The same 26 unaddressed host files ship as host-extras-<address>.tar.
@@ -527,7 +526,11 @@ cells:
       (invalid-bytecode), rolled back 2/2) and append (patch 4: target-missing, rolled back 3/3). After each, the next boot logged "Patch N is known bad, skipping" and ran patch 1 at 3/3.
       No crash report. FORCED_PARTIAL_PASS. Limits: forged patches only (the engine's refusal and rollback, not Route B coverage of ordinary edits); signed with one fresh key, unsigned
       patches not run; one CLI, one device, one app; no screenshots kept. The engine of the superseded 97f91aff crashed on a forged patch (evidence/ios-cell-97f91aff-activation-crash/RESULT.md).
-      Android: NOT YET RUN on this cell. TODO(android-83198f59): replace this line with the Android run's evidence (evidence/android-cell-83198f59-.../RESULT.md) once it exists.
+      Android: run on the OnePlus CPH2551 (Android 16, arm64 only; arm32 and x86_64 uploaded, not run) on 2026-11-26, app dev.selfhost.untab.android release 1.0.0+1 (APK sha256 675bf514...,
+      45072851 B), CLI 6885b3fc (trees equal 910ff250's), signed with a fresh RSA-2048 key (evidence/android-cell-83198f59/RESULT.md). Patch 1 (t254, loadGreeting awaits TickerFuture) and patch 2
+      (p06, p07, p08, p03, p16b, p29) were each verified ("Patch signature is valid") and launched ("Launch success for patch N"; G4 under patch 1, G2 with count=10..50 and events=5 under patch 2).
+      Rollback of patch 2 ("Rolled back: yes"): the learn boot still ran patch 2, the next two boots ran patch 1 (G4). Limits: no negative signing cases; under patch 1 the route=R1 and detail=D1
+      shape lines are missing because the harness's post-frame callback gets no frame (the same harness limit as 9995f957's run, not a patch defect); one device, arm64 only.
     producer_lineage: 88a7bf8cdb2ad206eb91a2275d77a4304c23f98d
     fallback_engine_revision: f0a7d29193ea6e077e02080a3511b405a4401b6f
     evidence: evidence/r12-linux-ci/PROMOTION_83198f59.md
@@ -1412,12 +1415,12 @@ product_surfaces:
   # constructs. Recorded because "unsupported construct" and "unsupported
   # surface" have different remediations and collapsing them hides the second.
   standalone_flutter_app:
-    ios: SUPPORTED — the supported cell 83198f59 (engine 88a7bf8c, Dart a42323e3; all-or-nothing container rollback, and an already-loaded payload library refused instead of crashing); iPhone-run 2026-11-26: forged partial patches refused and rolled back as a whole, patch 1 kept at 3/3, no crash, signed with a fresh key, forged patches only (cells.83198f59….physically_qualified). NOT yet run on Android on this cell (TODO(android-83198f59)). Ordinary-patch device runs on the previous cell 9995f957 (engine 09c6f422) do not carry over to a new engine. 9995f957 is SUPERSEDED: it has f2458551's device-bound bytes and a new analyzer (analysis 24); iPhone-run on 2026-11-23 with CLI 668ce3f0 (the merge of #291): await patches published and ran; on 2026-11-24 with #295 (supported CLI bd050aea): patches calling timeout, whenComplete and catchError published and ran, with limits (cells.9995f957….physically_qualified); Android-run on 2026-11-24 (unsigned, CLI 2f0b38a6; #291 and #295 are iOS-only), with limits (cells.9995f957….physically_qualified). f2458551 is device-qualified (iPhone 7, 2026-11-22, unsigned and signed patches, with limits, cells.f2458551….physically_qualified); the previous device-qualified cell is a377ecb7 (cells.a377ecb7….physically_qualified); earlier cells were physically qualified too, see physical_device_qualification
+    ios: SUPPORTED — the supported cell 83198f59 (engine 88a7bf8c, Dart a42323e3; all-or-nothing container rollback, and an already-loaded payload library refused instead of crashing); iPhone-run 2026-11-26: forged partial patches refused and rolled back as a whole, patch 1 kept at 3/3, no crash, signed with a fresh key, forged patches only (cells.83198f59….physically_qualified). Android-run too, 2026-11-26 (signed; patches 1 and 2 ran, rollback fell back to patch 1; cells.83198f59….physically_qualified). Ordinary-patch device runs on the previous cell 9995f957 (engine 09c6f422) do not carry over to a new engine. 9995f957 is SUPERSEDED: it has f2458551's device-bound bytes and a new analyzer (analysis 24); iPhone-run on 2026-11-23 with CLI 668ce3f0 (the merge of #291): await patches published and ran; on 2026-11-24 with #295 (supported CLI bd050aea): patches calling timeout, whenComplete and catchError published and ran, with limits (cells.9995f957….physically_qualified); Android-run on 2026-11-24 (unsigned, CLI 2f0b38a6; #291 and #295 are iOS-only), with limits (cells.9995f957….physically_qualified). f2458551 is device-qualified (iPhone 7, 2026-11-22, unsigned and signed patches, with limits, cells.f2458551….physically_qualified); the previous device-qualified cell is a377ecb7 (cells.a377ecb7….physically_qualified); earlier cells were physically qualified too, see physical_device_qualification
     android:
       status: SUPPORTED — physically qualified 2026-09-04 against cell f85251f3…
       qualified: 2026-09-04 (ANDROID-FINAL-STACK-2)
       cell: f85251f344600ae08196925a174e9cff8f0ff18e
-      # Since then: NOT yet device-run on the supported cell 83198f59 (TODO(android-83198f59)); device-run on the previous cell 9995f957 on 2026-11-24
+      # Since then: device-run on the supported cell 83198f59 on 2026-11-26 (signed, CLI 6885b3fc; evidence/android-cell-83198f59/RESULT.md); device-run on the previous cell 9995f957 on 2026-11-24
       # (unsigned, CLI 2f0b38a6; t254 and the await patches published and ran,
       # rollback worked): evidence/android-cell-9995f957-future-then/RESULT.md.
       # The keys above stay the qualification of record.

@@ -35,7 +35,7 @@ The reuse-first-payload step is the case engine `64abe347` (cell `97f91aff`) did
 
 - **Signed with a fresh key, one device, one app, one CLI.** Unsigned patches were not run here.
 - **These are forged patches.** They exercise the engine's refusal and rollback paths, not the Route B coverage of ordinary edits. Patch 1 is an ordinary patch: the 3-target `p06_async_return` plus `p03_setstate_closure` edit.
-- **Android was not run.** TODO(android-83198f59): replace this line with the Android run's evidence directory when it exists.
+- **Android** is a separate run: [`android-cell-83198f59`](../android-cell-83198f59/RESULT.md).
 - **The `.dbg` captures are empty** (0 bytes, not kept), and the screenshots were not kept: the status bar can show personal notifications. The `<step>_*.log` files are the app's own lines from the iPhone's system log (`Runner`), cut from the 2.6-5.4 MB captures; the same lines are in `forced_partial.out`.
 - **The release's `built-for` hash `ff1d533b...` equals the one in the `97f91aff` run** (a different release, `1.0.0+78`). It is the Route B release hash the engine prints; the same app source gives the same hash. It was not checked further.
 - **`install.txt` is cut**: the per-file `Copying` lines are removed. Home paths are written `~`.
