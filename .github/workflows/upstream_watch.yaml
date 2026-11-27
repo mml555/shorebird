@@ -1,0 +1,93 @@
+name: Upstream watch
+
+# Detects when upstream Shorebird or Flutter ships something and keeps ONE open
+# issue ("Upstream watch", label `upstream`) current. The issue body holds the
+# table of ours vs upstream plus the last state as JSON in an HTML comment; a
+# run that finds a change rewrites the body and adds a comment listing what is
+# new, so the owner is notified only on change. Detection only: pulling an
+# update in is the manual promotion process (selfhost/TOOLCHAIN_PROMOTION.md).
+# Run by hand: tool/upstream_watch.sh --json
+
+on:
+  schedule:
+    - cron: "17 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  contents: read
+
+concurrency:
+  group: upstream-watch
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    # Hosted runner: reads only public repos and needs no home-runner state.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: tool/upstream_watch.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Find the tracking issue
+        id: find
+        run: |
+          gh label create upstream --color 5319e7 \
+            --description "Upstream Shorebird or Flutter changes" 2>/dev/null || true
+          number=$(gh issue list --label upstream --state open --limit 100 \
+            --json number,title \
+            --jq '[.[] | select(.title == "Upstream watch")] | sort_by(.number) | .[0].number // empty')
+          echo "number=${number}" >> "$GITHUB_OUTPUT"
+          if [ -n "$number" ]; then
+            gh issue view "$number" --json body --jq .body > body.txt
+            # The state is the JSON between the two markers.
+            sed -n '/^<!-- upstream-watch-state$/,/^-->$/p' body.txt | sed '1d;$d' > previous.json
+          fi
+          if ! jq -e . previous.json > /dev/null 2>&1; then
+            echo '{}' > previous.json
+          fi
+
+      - name: Check upstream
+        run: |
+          tool/upstream_watch.sh --report previous.json \
+            --out state.json --changes-file changes.md > report.md
+          cat report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Update the issue
+        env:
+          NUMBER: ${{ steps.find.outputs.number }}
+        run: |
+          {
+            cat report.md
+            echo
+            echo "<!-- upstream-watch-state"
+            jq -S . state.json
+            echo "-->"
+          } > new_body.md
+
+          if [ -z "$NUMBER" ]; then
+            gh issue create --title "Upstream watch" --label upstream \
+              --body-file new_body.md
+            exit 0
+          fi
+
+          if [ ! -s changes.md ]; then
+            echo "Nothing new; the issue is left alone."
+            exit 0
+          fi
+
+          gh issue edit "$NUMBER" --body-file new_body.md
+          {
+            echo "New upstream changes ($(date -u +%F)):"
+            echo
+            cat changes.md
+            echo
+            echo "Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          } > comment.md
+          gh issue comment "$NUMBER" --body-file comment.md
