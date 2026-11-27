@@ -483,6 +483,28 @@ void main() {
       });
     });
 
+    group('when the engine is withdrawn', () {
+      setUp(() {
+        when(() => dartSdkCompatibility.validate()).thenThrow(
+          WithdrawnEngineException(
+            engineRevision: '97f91aff',
+            reason: 'superseded',
+          ),
+        );
+      });
+
+      test('refuses to build and names the supported cell', () async {
+        await expectLater(
+          () => runWithOverrides(command.run),
+          exitsWithError(
+            message: contains('83198f59'),
+            exitCode: ExitCode.config,
+          ),
+        );
+        verifyNever(() => releaser.buildReleaseArtifacts());
+      });
+    });
+
     // The runtime-endpoint gate, asserted at the ENTRYPOINT. Its rules are
     // covered by runtime_endpoint_test, including the upstream control; these
     // prove the release COMMAND consults it, and that it does so before

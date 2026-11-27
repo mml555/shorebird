@@ -69,6 +69,59 @@ void main() {
         expect(() => runWithOverrides(compatibility.validate), returnsNormally);
       });
 
+      group('withdrawn engines', () {
+        const withdrawn = <String>[
+          'c9a5421ce57c8f9091462400fbc606ea0f7364ac',
+          '04e5ef97bb563da87cf32dc1380bc632a14d7bd3',
+          '64abe347da9ba3901b8c235aaf1f97dcda7f28eb',
+          '97f91aff85e1db8b724afb51ff0e91466b78764c',
+        ];
+        for (final hash in withdrawn) {
+          for (final revision in [hash, hash.substring(0, 8)]) {
+            test('refuses $revision', () {
+              when(() => shorebirdEnv.shorebirdEngineRevision).thenReturn(
+                revision,
+              );
+              // No Dart SDK revision file: the refusal comes first.
+              expect(
+                () => runWithOverrides(compatibility.validate),
+                throwsA(
+                  isA<WithdrawnEngineException>()
+                      .having((e) => e.engineRevision, 'engine', revision)
+                      .having(
+                        (e) => '$e',
+                        'message',
+                        allOf(
+                          contains(revision),
+                          contains('83198f59'),
+                          contains('selfhost-v'),
+                        ),
+                      ),
+                ),
+              );
+            });
+          }
+        }
+
+        for (final revision in [
+          '83198f598d638fb2b5848f64bb377f504185a3da',
+          '83198f59',
+          '88a7bf8c',
+          '1234567890abcdef1234567890abcdef12345678',
+        ]) {
+          test('does not refuse $revision', () {
+            when(() => shorebirdEnv.shorebirdEngineRevision).thenReturn(
+              revision,
+            );
+            writeSdkRevision('a42323e3');
+            expect(
+              () => runWithOverrides(compatibility.validate),
+              isNot(throwsA(isA<WithdrawnEngineException>())),
+            );
+          });
+        }
+      });
+
       test('does nothing when the Dart SDK matches the engine', () {
         when(() => shorebirdEnv.shorebirdEngineRevision).thenReturn(
           knownEngine,
@@ -108,6 +161,10 @@ void main() {
       test('checks every engine in the table', () {
         for (final entry
             in DartSdkCompatibility.expectedDartSdkRevisions.entries) {
+          // Refused outright; covered by 'withdrawn engines'.
+          if (DartSdkCompatibility.withdrawnRevisions.containsKey(entry.key)) {
+            continue;
+          }
           when(
             () => shorebirdEnv.shorebirdEngineRevision,
           ).thenReturn(entry.key);
