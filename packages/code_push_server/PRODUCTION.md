@@ -201,7 +201,7 @@ git pull
 docker compose -f docker-compose.prod.yaml pull server
 #    From source (you uncommented `build:`): build it instead of pulling.
 #      docker compose -f docker-compose.prod.yaml build server
-#    A CPS_IMAGE that exists only on this host (a local build, a retagged
+#    A CPS_IMAGE that exists only on this host (a local build, a re-tagged
 #    rollback image): skip this step, there is nothing to pull.
 
 # 3. Preflight: the new image validates this .env before anything is replaced.
