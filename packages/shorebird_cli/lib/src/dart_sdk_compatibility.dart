@@ -73,6 +73,9 @@ class DartSdkCompatibility {
     // Flutter 3.50 engine 88a7bf8c and the cell 83198f59 minted over it (Dart a42323e3). selfhost/cdn/experimental_hashes.map.
     '88a7bf8c': 'a42323e3',
     '83198f59': 'a42323e3',
+    // Flutter 3.50 engine 93adf4fb and the cell c9208259 minted over it (Dart e3f6fa90). selfhost/cdn/experimental_hashes.map.
+    '93adf4fb': 'e3f6fa90',
+    'c9208259': 'e3f6fa90',
   };
 
   /// Engines and cells that were published and must never be built against,
