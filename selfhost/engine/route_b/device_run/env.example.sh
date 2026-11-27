@@ -39,7 +39,9 @@ FLUTTER_DIR="$CLI/bin/cache/flutter/$FLUTTER_REV"
 [ "$R" != / ] && [ -d "$R" ] || { echo "env.sh: ""R=$R must be an existing directory, dedicated to this harness (release.sh deletes $R/work and $R/signed)" >&2; return 1 2>/dev/null || exit 1; }
 [ -d "$CLI" ] && [ -x "$CLI/bin/shorebird" ] || { echo "env.sh: ""CLI=$CLI must be a repo checkout with bin/shorebird" >&2; return 1 2>/dev/null || exit 1; }
 [ -f "$PROVISIONING_PROFILE" ] || { echo "env.sh: ""PROVISIONING_PROFILE=$PROVISIONING_PROFILE is not a file" >&2; return 1 2>/dev/null || exit 1; }
-[ -d "$FLUTTER_DIR" ] || { echo "env.sh: ""$FLUTTER_DIR is missing. Check FLUTTER_REV, and run \"$CLI/bin/shorebird --version\" once to populate the cache" >&2; return 1 2>/dev/null || exit 1; }
+# up.sh fills the Flutter cache (its bootstrap runs through the recording origin), so it sources this file
+# with DEVRUN_BOOTSTRAP=1 and checks the cache itself afterwards.
+[ -d "$FLUTTER_DIR" ] || [ "${DEVRUN_BOOTSTRAP:-0}" = 1 ] || { echo "env.sh: ""$FLUTTER_DIR is missing. Run bin/up.sh first (it fills the cache); if it is already up, check FLUTTER_REV" >&2; return 1 2>/dev/null || exit 1; }
 case "$BASE" in *:"$SERVER_PORT"|*:"$SERVER_PORT"/*) ;; *) echo "env.sh: BASE=$BASE must carry the port SERVER_PORT=$SERVER_PORT" >&2; return 1 2>/dev/null || exit 1 ;; esac
 if [ ! -f "$SECRETS_FILE" ]; then
   echo "env.sh: SECRETS_FILE $SECRETS_FILE not found; it must export API_KEY and URL_SIGNING_SECRET" >&2

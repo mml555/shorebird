@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC1090,SC2164,SC2034
 set -uo pipefail
-. "${DEVRUN_ENV:-$(dirname "$0")/../env.sh}" || exit 1
+# DEVRUN_BOOTSTRAP=1: the Flutter cache may not exist yet; the bootstrap below fills it.
+DEVRUN_BOOTSTRAP=1 . "${DEVRUN_ENV:-$(dirname "$0")/../env.sh}" || exit 1
 die(){ echo "UP STOP: $*"; exit 1; }
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 cd "$R" || die "no work dir $R"
@@ -21,6 +22,7 @@ curl -fsS -o /dev/null -w 'descriptor %{http_code} %{size_download}\n' "$SHOREBI
 "$SB" --version -v > logs/bootstrap.log 2>&1; echo "bootstrap exit=$?"
 grep -E "Engine .*revision|Flutter .*revision|Flutter [0-9]" logs/bootstrap.log | head -4
 grep -q "revision $ENGINE_REV" logs/bootstrap.log || die "bootstrap did not resolve engine $ENGINE_REV"
+[ -x "$FLUTTER_DIR/bin/cache/dart-sdk/bin/dart" ] || die "bootstrap did not fill $FLUTTER_DIR (no dart-sdk); FLUTTER_REV must equal $CLI/bin/internal/flutter.version"
 DART="$FLUTTER_DIR/bin/cache/dart-sdk/bin/dart"
 (cd "$CLI/packages/code_push_server" && "$DART" pub get > "$R/logs/server_pubget.log" 2>&1) || die "server pub get"
 nohup env API_KEY="$API_KEY" URL_SIGNING_SECRET="$URL_SIGNING_SECRET" PORT="$SERVER_PORT" PUBLIC_BASE_URL="$BASE" DATA_DIR="$R/data" \
