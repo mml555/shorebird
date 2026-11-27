@@ -699,6 +699,7 @@ words:
   - unreconstructible
   - unrecreated
   - unreportable
+  - unresolve # route_b_forge_partial_patch --unresolve-last (#312)
   - unstubbed
   - unvendored
   - overpromises
