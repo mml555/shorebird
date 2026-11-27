@@ -11,7 +11,13 @@
 #                 reuse-first-payload  last target keeps its selector, carries the
 #                                      first target's payload                      -> REFUSED (invalid-bytecode)
 #                 append               a bogus target appended after the real ones -> REFUSED (target-missing)
+#                 bad-format-last      last payload's bytecode format version set
+#                                      to one no VM reads                         -> REFUSED (invalid-bytecode)
+#                 unresolve-last       last payload names dart:cor_, a library no
+#                                      release has, in place of dart:core         -> REFUSED (invalid-bytecode)
 #                 Engines up to 64abe347 crash on reuse-first-payload and append; use FORGE_MODES=retarget-last there.
+#                 bad-format-last and unresolve-last need an engine whose Dart has mml555/dart-sdk-shorebird-lineage#11 (older ones abort before main),
+#                 so they are not in the default list; the refusal also prints "payload does not load, refused".
 #   VARIANT       the patch to forge from (default p06_async_return+p03_setstate_closure)
 # Patches go to the stable channel, the one the app polls. Each forged patch is a new patch on the release;
 # after its rollback the updater marks it bad and the next boot runs the good patch again.
@@ -30,10 +36,13 @@ cp "$APP/build/route_b/patch.sbrbptch" "$L/two.sbrbptch"
 boot two_download 30; boot two_boot 25
 grep -aqE 'ROUTEB: applied ([0-9]+)/\1 targets' "$L/two_boot.sys" || { echo "FAIL two: the patch did not apply fully"; exit 1; }
 for m in $MODES; do
+  also=''
   case "$m" in
     retarget-last) flag=(--retarget-last); want='REFUSED \(target-missing\)';;
     reuse-first-payload) flag=(--reuse-first-payload); want='REFUSED \(invalid-bytecode\)';;
     append) flag=(); want='REFUSED \(target-missing\)';;
+    bad-format-last) flag=(--bad-format-last); want='REFUSED \(invalid-bytecode\)'; also='payload does not load, refused: .*format version';;
+    unresolve-last) flag=(--unresolve-last); want='REFUSED \(invalid-bytecode\)'; also='payload does not load, refused: .*Unable to find library';;
     *) echo "unknown FORGE_MODES entry: $m"; exit 1;;
   esac
   (cd "$CLI/packages/shorebird_cli" && "$DART" run tool/route_b_forge_partial_patch.dart --i-know-this-is-a-test-patch ${flag[@]+"${flag[@]}"} \
@@ -44,10 +53,10 @@ for m in $MODES; do
   [ $rc = 0 ] || { tail -5 "$L/forge_$m.txt"; exit 1; }
   boot "${m}_download" 30; boot "${m}_boot" 25; boot "${m}_after" 25
   s="$L/${m}_boot.sys"
-  if grep -aqE "$want" "$s" && grep -aqE 'rolled back ([0-9]+)/\1 attached targets, main runs the release code' "$s"; then
+  if grep -aqE "$want" "$s" && { [ -z "$also" ] || grep -aqE "$also" "$s"; } && grep -aqE 'rolled back ([0-9]+)/\1 attached targets, main runs the release code' "$s"; then
     echo "PASS $m"
   else
-    echo "FAIL $m: no '$want' with a full rollback in ${m}_boot"; fail=1
+    echo "FAIL $m: no '$want' ('$also') with a full rollback in ${m}_boot"; fail=1
   fi
 done
 idevicedebug -u "$UDID" kill "$BUNDLE" >/dev/null 2>&1
