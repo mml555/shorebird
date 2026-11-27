@@ -1,0 +1,166 @@
+applied schema migration version=1
+applied schema migration version=2
+applied schema migration version=3
+applied schema migration version=4
+applied schema migration version=5
+applied schema migration version=6
+applied schema migration version=7
+applied schema migration version=8
+applied schema migration version=9
+applied schema migration version=10
+applied schema migration version=11
+applied schema migration version=12
+applied schema migration version=13
+applied schema migration version=14
+applied schema migration version=15
+applied schema migration version=16
+applied schema migration version=17
+applied schema migration version=18
+applied schema migration version=19
+applied schema migration version=20
+applied schema migration version=21
+applied schema migration version=22
+code_push_server listening on 18290
+  public base url : http://localhost:18290
+  database        : sqlite (~/Developer/shorebird-wt/devrun/android-c9208259/data/code_push.db)
+  artifacts       : files (~/Developer/shorebird-wt/devrun/android-c9208259/data/artifacts)
+  jwt issuer      : http://localhost:18290
+audit audit_id=1 timestamp=2026-11-27T18:00:38.396895Z request_id=req_9a3a3c288d3bab7f34a6242648896656 operation=app.create route=POST /api/v1/apps method=POST actor_id=1 actor=owner@self-host.local actor_credential=bootstrap:9c3ee3a9476d app_id=04e3cc80-852c-5f26-ed7f-ed04642de1c3 result=success http_status=200 detail={"org_id":1}
+POST /api/v1/apps -> 200 (18ms) [req_9a3a3c288d3bab7f34a6242648896656]
+GET / -> 200 (0ms) [req_00b55e8f92e3d651e3e1213a9b55b920]
+GET /api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3 -> 200 (3ms) [req_3d8bad52fdc97c521f215f5770fcd436]
+GET /api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3/releases -> 200 (4ms) [req_fb417be0ea387c61c4f95cbb7d0a3aa3]
+GET /api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3/releases -> 200 (0ms) [req_8201cdb37e68d33036762dfcbadce194]
+audit audit_id=2 timestamp=2026-11-27T18:03:06.967869Z request_id=req_4116cd3f4806789a5ebf9f0b84443742 operation=release.create route=POST /api/v1/apps/{app}/releases method=POST actor_id=1 actor=owner@self-host.local actor_credential=bootstrap:9c3ee3a9476d app_id=04e3cc80-852c-5f26-ed7f-ed04642de1c3 release_id=1 result=success http_status=200 detail={"version":"1.0.0+1"}
+POST /api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3/releases -> 200 (11ms) [req_4116cd3f4806789a5ebf9f0b84443742]
+audit audit_id=3 timestamp=2026-11-27T18:03:06.984837Z request_id=req_b34098f8e752d6483b81c95671167bcd operation=release.update route=PATCH /api/v1/apps/{app}/releases/{release} method=PATCH actor_id=1 actor=owner@self-host.local actor_credential=bootstrap:9c3ee3a9476d app_id=04e3cc80-852c-5f26-ed7f-ed04642de1c3 release_id=1 result=success http_status=204 detail={"status":"draft","platform":"android"}
+PATCH /api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3/releases/1 -> 204 (8ms) [req_b34098f8e752d6483b81c95671167bcd]
+audit audit_id=4 timestamp=2026-11-27T18:03:06.994609Z request_id=req_0ef27c3d6480b4e84f6193d581eba028 operation=release.update route=PATCH /api/v1/apps/{app}/releases/{release} method=PATCH actor_id=1 actor=owner@self-host.local actor_credential=bootstrap:9c3ee3a9476d app_id=04e3cc80-852c-5f26-ed7f-ed04642de1c3 release_id=1 result=success http_status=204 detail={"status":"draft","platform":"android"}
+PATCH /api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3/releases/1 -> 204 (6ms) [req_0ef27c3d6480b4e84f6193d581eba028]
+audit audit_id=5 timestamp=2026-11-27T18:03:07.221349Z request_id=req_b504b3e256510cacdd504cbe1b39be73 operation=release.artifact.create route=POST /api/v1/apps/{app}/releases/{release}/artifacts method=POST actor_id=1 actor=owner@self-host.local actor_credential=bootstrap:9c3ee3a9476d app_id=04e3cc80-852c-5f26-ed7f-ed04642de1c3 release_id=1 result=success http_status=200 detail={"arch":"arm","platform":"android"}
+POST /api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3/releases/1/artifacts -> 200 (7ms) [req_b504b3e256510cacdd504cbe1b39be73]
+artifact verified artifact=1 owner=release arch=arm bytes=3342920
+audit audit_id=6 timestamp=2026-11-27T18:03:07.336405Z request_id=req_13b0123e01979af90ae7945a4db0e373 operation=artifact.upload route=POST /api/v1/uploads/{token} method=POST actor_id=1 actor=owner@self-host.local actor_credential=bootstrap:9c3ee3a9476d app_id=04e3cc80-852c-5f26-ed7f-ed04642de1c3 release_id=1 result=success http_status=204 detail={"artifact_id":1,"owner_kind":"release","arch":"arm","platform":"android"}
+POST /api/v1/uploads/7a51a694a4ebf1ec3a6b99654cf7b561 -> 204 (111ms) [req_13b0123e01979af90ae7945a4db0e373]
+audit audit_id=7 timestamp=2026-11-27T18:03:07.374430Z request_id=req_f9556e0745a428b121471242a2bc9522 operation=release.artifact.create route=POST /api/v1/apps/{app}/releases/{release}/artifacts method=POST actor_id=1 actor=owner@self-host.local actor_credential=bootstrap:9c3ee3a9476d app_id=04e3cc80-852c-5f26-ed7f-ed04642de1c3 release_id=1 result=success http_status=200 detail={"arch":"aarch64","platform":"android"}
+POST /api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3/releases/1/artifacts -> 200 (2ms) [req_f9556e0745a428b121471242a2bc9522]
+artifact verified artifact=2 owner=release arch=aarch64 bytes=3015640
+audit audit_id=8 timestamp=2026-11-27T18:03:07.440391Z request_id=req_07881610adcf62278a0a26b6cc493fd6 operation=artifact.upload route=POST /api/v1/uploads/{token} method=POST actor_id=1 actor=owner@self-host.local actor_credential=bootstrap:9c3ee3a9476d app_id=04e3cc80-852c-5f26-ed7f-ed04642de1c3 release_id=1 result=success http_status=204 detail={"artifact_id":2,"owner_kind":"release","arch":"aarch64","platform":"android"}
+POST /api/v1/uploads/f89396bf82a81330ddbeecdcccdf3dc1 -> 204 (64ms) [req_07881610adcf62278a0a26b6cc493fd6]
+audit audit_id=9 timestamp=2026-11-27T18:03:07.486055Z request_id=req_6fa92ee50192b52b44670880d25ebef5 operation=release.artifact.create route=POST /api/v1/apps/{app}/releases/{release}/artifacts method=POST actor_id=1 actor=owner@self-host.local actor_credential=bootstrap:9c3ee3a9476d app_id=04e3cc80-852c-5f26-ed7f-ed04642de1c3 release_id=1 result=success http_status=200 detail={"arch":"x86_64","platform":"android"}
+POST /api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3/releases/1/artifacts -> 200 (2ms) [req_6fa92ee50192b52b44670880d25ebef5]
+artifact verified artifact=3 owner=release arch=x86_64 bytes=3146712
+audit audit_id=10 timestamp=2026-11-27T18:03:07.555646Z request_id=req_6bfe87a1739f972ddb72bd86aa77d52d operation=artifact.upload route=POST /api/v1/uploads/{token} method=POST actor_id=1 actor=owner@self-host.local actor_credential=bootstrap:9c3ee3a9476d app_id=04e3cc80-852c-5f26-ed7f-ed04642de1c3 release_id=1 result=success http_status=204 detail={"artifact_id":3,"owner_kind":"release","arch":"x86_64","platform":"android"}
+POST /api/v1/uploads/cd526dd9c57de419e8406d020566f473 -> 204 (68ms) [req_6bfe87a1739f972ddb72bd86aa77d52d]
+audit audit_id=11 timestamp=2026-11-27T18:03:08.120435Z request_id=req_519bd480d76c5e0f3b08636781abd6be operation=release.artifact.create route=POST /api/v1/apps/{app}/releases/{release}/artifacts method=POST actor_id=1 actor=owner@self-host.local actor_credential=bootstrap:9c3ee3a9476d app_id=04e3cc80-852c-5f26-ed7f-ed04642de1c3 release_id=1 result=success http_status=200 detail={"arch":"aab","platform":"android"}
+POST /api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3/releases/1/artifacts -> 200 (2ms) [req_519bd480d76c5e0f3b08636781abd6be]
+artifact verified artifact=4 owner=release arch=aab bytes=46764322
+audit audit_id=12 timestamp=2026-11-27T18:03:09.001763Z request_id=req_7503e5d0a3ee09cab22c511b068243f3 operation=artifact.upload route=POST /api/v1/uploads/{token} method=POST actor_id=1 actor=owner@self-host.local actor_credential=bootstrap:9c3ee3a9476d app_id=04e3cc80-852c-5f26-ed7f-ed04642de1c3 release_id=1 result=success http_status=204 detail={"artifact_id":4,"owner_kind":"release","arch":"aab","platform":"android"}
+POST /api/v1/uploads/8808581d436015e11e9cf1282954e5c6 -> 204 (879ms) [req_7503e5d0a3ee09cab22c511b068243f3]
+audit audit_id=13 timestamp=2026-11-27T18:03:09.031717Z request_id=req_cf46dcb468c5f26ebe6a1f9059bff8c8 operation=release.artifact.create route=POST /api/v1/apps/{app}/releases/{release}/artifacts method=POST actor_id=1 actor=owner@self-host.local actor_credential=bootstrap:9c3ee3a9476d app_id=04e3cc80-852c-5f26-ed7f-ed04642de1c3 release_id=1 result=success http_status=200 detail={"arch":"android_supplement","platform":"android"}
+POST /api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3/releases/1/artifacts -> 200 (2ms) [req_cf46dcb468c5f26ebe6a1f9059bff8c8]
+artifact verified artifact=5 owner=release arch=android_supplement bytes=435
+audit audit_id=14 timestamp=2026-11-27T18:03:09.037463Z request_id=req_81449ea017d9838e1cd87247723be56b operation=artifact.upload route=POST /api/v1/uploads/{token} method=POST actor_id=1 actor=owner@self-host.local actor_credential=bootstrap:9c3ee3a9476d app_id=04e3cc80-852c-5f26-ed7f-ed04642de1c3 release_id=1 result=success http_status=204 detail={"artifact_id":5,"owner_kind":"release","arch":"android_supplement","platform":"android"}
+POST /api/v1/uploads/6e7add3dc329c5bc7b2f2e86e076edf0 -> 204 (4ms) [req_81449ea017d9838e1cd87247723be56b]
+audit audit_id=16 timestamp=2026-11-27T18:03:09.073746Z request_id=req_f5f584bc235e51338c9c717837dc7cbe operation=release.update route=PATCH /api/v1/apps/{app}/releases/{release} method=PATCH actor_id=1 actor=owner@self-host.local actor_credential=bootstrap:9c3ee3a9476d app_id=04e3cc80-852c-5f26-ed7f-ed04642de1c3 release_id=1 result=success http_status=204 detail={"status":"active","platform":"android"}
+PATCH /api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3/releases/1 -> 204 (5ms) [req_f5f584bc235e51338c9c717837dc7cbe]
+audit audit_id=17 timestamp=2026-11-27T18:03:09.084032Z request_id=req_3d3f371a5a38b3b42f80d51c0b57c4e3 operation=build_run.record route=POST /api/v1/apps/{app}/runs method=POST actor_id=1 actor=owner@self-host.local actor_credential=bootstrap:9c3ee3a9476d app_id=04e3cc80-852c-5f26-ed7f-ed04642de1c3 result=success http_status=201
+POST /api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3/runs -> 201 (3ms) [req_3d3f371a5a38b3b42f80d51c0b57c4e3]
+POST /api/v1/patches/check -> 200 (1ms) [req_dc854268caecff1bfa59287dd8f906d3]
+POST /api/v1/patches/check -> 200 (1ms) [req_195e630941fd2118874de7defbbcc7b6]
+GET /api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3 -> 200 (2ms) [req_8d2c7430cc787a1a67c8e35eb0337a63]
+GET /api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3/releases -> 200 (2ms) [req_8db86471d39a8d92f3f944173da6b9c5]
+GET /api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3/releases/1/artifacts -> 200 (2ms) [req_5f074f0594f55c97348a76cd3d8dd13b]
+GET /api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3/releases/1/artifacts -> 200 (1ms) [req_fa24c029c510c2f27b4d8c7f2dffbf0f]
+GET /api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3/releases/1/artifacts -> 200 (1ms) [req_3c0c783521326c62dcd305bf3a7c1607]
+GET /api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3/releases/1/artifacts -> 200 (1ms) [req_58fa96311524e5b4b1230a70d4527c26]
+GET /api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3/releases/1/artifacts -> 200 (0ms) [req_91ab364263da7690187d14dd06f1f0d7]
+GET /download/8808581d436015e11e9cf1282954e5c6 -> 200 (1ms) [req_32232edb50d30d8d0136f33f848c3b52]
+GET /download/6e7add3dc329c5bc7b2f2e86e076edf0 -> 200 (0ms) [req_0268b6e7e6f68f83b0df44b9858c60eb]
+GET /download/7a51a694a4ebf1ec3a6b99654cf7b561 -> 200 (0ms) [req_7a7c122334e4b98b9200e1983e96eb52]
+GET /download/f89396bf82a81330ddbeecdcccdf3dc1 -> 200 (0ms) [req_5203fc50cee649c2c1c507ee8e658566]
+GET /download/cd526dd9c57de419e8406d020566f473 -> 200 (0ms) [req_e27d05f73019eb557efeb0165d5a5f87]
+audit audit_id=18 timestamp=2026-11-27T18:04:46.544977Z request_id=req_891c38a61e0b6d71028e1e4e85df16ea operation=patch.create route=POST /api/v1/apps/{app}/patches method=POST actor_id=1 actor=owner@self-host.local actor_credential=bootstrap:9c3ee3a9476d app_id=04e3cc80-852c-5f26-ed7f-ed04642de1c3 release_id=1 patch_id=1 patch_number=1 result=success http_status=200
+POST /api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3/patches -> 200 (3ms) [req_891c38a61e0b6d71028e1e4e85df16ea]
+audit audit_id=19 timestamp=2026-11-27T18:04:46.555812Z request_id=req_c2b5df48698c2d54bbbc05b45f50933a operation=patch.artifact.create route=POST /api/v1/apps/{app}/patches/{patch}/artifacts method=POST actor_id=1 actor=owner@self-host.local actor_credential=bootstrap:9c3ee3a9476d app_id=04e3cc80-852c-5f26-ed7f-ed04642de1c3 release_id=1 patch_id=1 patch_number=1 result=success http_status=200 detail={"arch":"arm","platform":"android"}
+POST /api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3/patches/1/artifacts -> 200 (3ms) [req_c2b5df48698c2d54bbbc05b45f50933a]
+artifact verified artifact=6 owner=patch arch=arm bytes=320945
+audit audit_id=20 timestamp=2026-11-27T18:04:46.582065Z request_id=req_da1aa3a8ffdc554aa1dcf027370bef49 operation=artifact.upload route=POST /api/v1/uploads/{token} method=POST actor_id=1 actor=owner@self-host.local actor_credential=bootstrap:9c3ee3a9476d app_id=04e3cc80-852c-5f26-ed7f-ed04642de1c3 release_id=1 patch_id=1 patch_number=1 result=success http_status=204 detail={"artifact_id":6,"owner_kind":"patch","arch":"arm","platform":"android"}
+POST /api/v1/uploads/fab613cab8bf87deae4350bcafe02064 -> 204 (23ms) [req_da1aa3a8ffdc554aa1dcf027370bef49]
+audit audit_id=21 timestamp=2026-11-27T18:04:46.587308Z request_id=req_ca462dd16eb66b0f246075ad459b2df0 operation=patch.artifact.create route=POST /api/v1/apps/{app}/patches/{patch}/artifacts method=POST actor_id=1 actor=owner@self-host.local actor_credential=bootstrap:9c3ee3a9476d app_id=04e3cc80-852c-5f26-ed7f-ed04642de1c3 release_id=1 patch_id=1 patch_number=1 result=success http_status=200 detail={"arch":"aarch64","platform":"android"}
+POST /api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3/patches/1/artifacts -> 200 (1ms) [req_ca462dd16eb66b0f246075ad459b2df0]
+artifact verified artifact=7 owner=patch arch=aarch64 bytes=224874
+audit audit_id=22 timestamp=2026-11-27T18:04:46.594094Z request_id=req_5d87cc71d5c99ddc946f38912bfe2353 operation=artifact.upload route=POST /api/v1/uploads/{token} method=POST actor_id=1 actor=owner@self-host.local actor_credential=bootstrap:9c3ee3a9476d app_id=04e3cc80-852c-5f26-ed7f-ed04642de1c3 release_id=1 patch_id=1 patch_number=1 result=success http_status=204 detail={"artifact_id":7,"owner_kind":"patch","arch":"aarch64","platform":"android"}
+POST /api/v1/uploads/05fc1b8bc8ec06faea6bc63ac1eb6c07 -> 204 (5ms) [req_5d87cc71d5c99ddc946f38912bfe2353]
+audit audit_id=23 timestamp=2026-11-27T18:04:46.597343Z request_id=req_38000128831f440e2e4aa324ccf58c30 operation=patch.artifact.create route=POST /api/v1/apps/{app}/patches/{patch}/artifacts method=POST actor_id=1 actor=owner@self-host.local actor_credential=bootstrap:9c3ee3a9476d app_id=04e3cc80-852c-5f26-ed7f-ed04642de1c3 release_id=1 patch_id=1 patch_number=1 result=success http_status=200 detail={"arch":"x86_64","platform":"android"}
+POST /api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3/patches/1/artifacts -> 200 (1ms) [req_38000128831f440e2e4aa324ccf58c30]
+artifact verified artifact=8 owner=patch arch=x86_64 bytes=334017
+audit audit_id=24 timestamp=2026-11-27T18:04:46.604340Z request_id=req_a9f45c2039ff7da0199feb8f72ad1db1 operation=artifact.upload route=POST /api/v1/uploads/{token} method=POST actor_id=1 actor=owner@self-host.local actor_credential=bootstrap:9c3ee3a9476d app_id=04e3cc80-852c-5f26-ed7f-ed04642de1c3 release_id=1 patch_id=1 patch_number=1 result=success http_status=204 detail={"artifact_id":8,"owner_kind":"patch","arch":"x86_64","platform":"android"}
+POST /api/v1/uploads/12a025a2fe3599468ed23119857ba271 -> 204 (5ms) [req_a9f45c2039ff7da0199feb8f72ad1db1]
+GET /api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3/channels -> 200 (0ms) [req_59326dac6d483cfe87cb4268f0f976d6]
+audit audit_id=25 timestamp=2026-11-27T18:04:46.611862Z request_id=req_5ede9c18a941901c5f96cad6e5cebbfa operation=channel.create route=POST /api/v1/apps/{app}/channels method=POST actor_id=1 actor=owner@self-host.local actor_credential=bootstrap:9c3ee3a9476d app_id=04e3cc80-852c-5f26-ed7f-ed04642de1c3 track=stable result=success http_status=200 detail={"channel_id":1}
+POST /api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3/channels -> 200 (1ms) [req_5ede9c18a941901c5f96cad6e5cebbfa]
+audit audit_id=26 timestamp=2026-11-27T18:04:46.616847Z request_id=req_5f770f019c3b6952a0c8111de8102464 operation=patch.promote route=POST /api/v1/apps/{app}/patches/promote method=POST actor_id=1 actor=owner@self-host.local actor_credential=bootstrap:9c3ee3a9476d app_id=04e3cc80-852c-5f26-ed7f-ed04642de1c3 release_id=1 patch_id=1 patch_number=1 track=stable result=success http_status=204 detail={"channel_id":1,"rollout":100}
+POST /api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3/patches/promote -> 204 (2ms) [req_5f770f019c3b6952a0c8111de8102464]
+audit audit_id=27 timestamp=2026-11-27T18:04:46.622848Z request_id=req_22c03c063b1b4b4a4394556c64ca95b1 operation=build_run.record route=POST /api/v1/apps/{app}/runs method=POST actor_id=1 actor=owner@self-host.local actor_credential=bootstrap:9c3ee3a9476d app_id=04e3cc80-852c-5f26-ed7f-ed04642de1c3 result=success http_status=201
+POST /api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3/runs -> 201 (1ms) [req_22c03c063b1b4b4a4394556c64ca95b1]
+POST /api/v1/patches/check -> 200 (2ms) [req_b4d6148ae10d20f38afba39c7f8a6e37]
+GET /download/05fc1b8bc8ec06faea6bc63ac1eb6c07 -> 200 (0ms) [req_8d9d9f975ebfdd63a083f88c3ed6f544]
+patches/events body={"event":{"app_id":"04e3cc80-852c-5f26-ed7f-ed04642de1c3","arch":"aarch64","client_id":"aed30cce-6117-40de-b792-0935551a3c77","type":"__patch_download__","patch_number":1,"platform":"android","release_version":"1.0.0+1","host_bundle_id":"dev.selfhost.untab.android","timestamp":1795802690,"message":null,"event_id":"b5e972f5-e5d3-4502-ae0a-897214555dbe","updater_revision":"64a458f034c8"}}
+POST /api/v1/patches/events -> 204 (3ms) [req_fc8bd6343c05523cc7cd9d4f31024402]
+POST /api/v1/patches/check -> 200 (0ms) [req_be34b6beffe64ee2b00d1317e1259e87]
+patches/events body={"event":{"app_id":"04e3cc80-852c-5f26-ed7f-ed04642de1c3","arch":"aarch64","client_id":"aed30cce-6117-40de-b792-0935551a3c77","type":"__patch_install__","patch_number":1,"platform":"android","release_version":"1.0.0+1","host_bundle_id":"dev.selfhost.untab.android","timestamp":1795802719,"message":null,"event_id":"357b1e63-9338-471b-b0ae-8aeb20f714d8","updater_revision":"64a458f034c8"}}
+POST /api/v1/patches/events -> 204 (0ms) [req_227b09a30699540e00cb326d6fa3c491]
+POST /api/v1/patches/check -> 200 (1ms) [req_0cc510e8ab420a0e15394ca3d6837a8d]
+GET /api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3 -> 200 (3ms) [req_bc31053a225d537581ed45a155243016]
+GET /api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3/releases -> 200 (1ms) [req_b1ea74330ac12ac2e897eb8faaa18d76]
+GET /api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3/releases/1/artifacts -> 200 (1ms) [req_0f7fbf61483a93cb530efaf463bc3f92]
+GET /api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3/releases/1/artifacts -> 200 (0ms) [req_6c47add966929039fb34f66de4168e4b]
+GET /api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3/releases/1/artifacts -> 200 (0ms) [req_467c4a16ff6d57aa1c243e2579390e9d]
+GET /api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3/releases/1/artifacts -> 200 (0ms) [req_816d0d88335f462cdd8b74746eea94d1]
+GET /api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3/releases/1/artifacts -> 200 (0ms) [req_a3809f371c2b83c18c5b4319cb1ab1f7]
+audit audit_id=28 timestamp=2026-11-27T18:06:44.626637Z request_id=req_19a66c1eacf38a54a1edf33ecb42aa5d operation=patch.create route=POST /api/v1/apps/{app}/patches method=POST actor_id=1 actor=owner@self-host.local actor_credential=bootstrap:9c3ee3a9476d app_id=04e3cc80-852c-5f26-ed7f-ed04642de1c3 release_id=1 patch_id=2 patch_number=2 result=success http_status=200
+POST /api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3/patches -> 200 (5ms) [req_19a66c1eacf38a54a1edf33ecb42aa5d]
+audit audit_id=29 timestamp=2026-11-27T18:06:44.635939Z request_id=req_f0959885078b6d0be0ff54034e507b25 operation=patch.artifact.create route=POST /api/v1/apps/{app}/patches/{patch}/artifacts method=POST actor_id=1 actor=owner@self-host.local actor_credential=bootstrap:9c3ee3a9476d app_id=04e3cc80-852c-5f26-ed7f-ed04642de1c3 release_id=1 patch_id=2 patch_number=2 result=success http_status=200 detail={"arch":"arm","platform":"android"}
+POST /api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3/patches/2/artifacts -> 200 (2ms) [req_f0959885078b6d0be0ff54034e507b25]
+artifact verified artifact=9 owner=patch arch=arm bytes=127114
+audit audit_id=30 timestamp=2026-11-27T18:06:44.641971Z request_id=req_d5c4970318e086a63b41deb3951a1d0a operation=artifact.upload route=POST /api/v1/uploads/{token} method=POST actor_id=1 actor=owner@self-host.local actor_credential=bootstrap:9c3ee3a9476d app_id=04e3cc80-852c-5f26-ed7f-ed04642de1c3 release_id=1 patch_id=2 patch_number=2 result=success http_status=204 detail={"artifact_id":9,"owner_kind":"patch","arch":"arm","platform":"android"}
+POST /api/v1/uploads/1e6cc2162550546a3a9be29c9025ed03 -> 204 (3ms) [req_d5c4970318e086a63b41deb3951a1d0a]
+audit audit_id=31 timestamp=2026-11-27T18:06:44.645845Z request_id=req_9c0fc2dccdce7eaccfa1d63c3fe98511 operation=patch.artifact.create route=POST /api/v1/apps/{app}/patches/{patch}/artifacts method=POST actor_id=1 actor=owner@self-host.local actor_credential=bootstrap:9c3ee3a9476d app_id=04e3cc80-852c-5f26-ed7f-ed04642de1c3 release_id=1 patch_id=2 patch_number=2 result=success http_status=200 detail={"arch":"aarch64","platform":"android"}
+POST /api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3/patches/2/artifacts -> 200 (2ms) [req_9c0fc2dccdce7eaccfa1d63c3fe98511]
+artifact verified artifact=10 owner=patch arch=aarch64 bytes=114396
+audit audit_id=32 timestamp=2026-11-27T18:06:44.651502Z request_id=req_bd39512530b76d2275225b6e5c14b672 operation=artifact.upload route=POST /api/v1/uploads/{token} method=POST actor_id=1 actor=owner@self-host.local actor_credential=bootstrap:9c3ee3a9476d app_id=04e3cc80-852c-5f26-ed7f-ed04642de1c3 release_id=1 patch_id=2 patch_number=2 result=success http_status=204 detail={"artifact_id":10,"owner_kind":"patch","arch":"aarch64","platform":"android"}
+POST /api/v1/uploads/b2f7b2a1d04809c95882687a813fa0b5 -> 204 (4ms) [req_bd39512530b76d2275225b6e5c14b672]
+audit audit_id=33 timestamp=2026-11-27T18:06:44.654674Z request_id=req_0c18fa383f7a1a7c4fdce52f1d30cd85 operation=patch.artifact.create route=POST /api/v1/apps/{app}/patches/{patch}/artifacts method=POST actor_id=1 actor=owner@self-host.local actor_credential=bootstrap:9c3ee3a9476d app_id=04e3cc80-852c-5f26-ed7f-ed04642de1c3 release_id=1 patch_id=2 patch_number=2 result=success http_status=200 detail={"arch":"x86_64","platform":"android"}
+POST /api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3/patches/2/artifacts -> 200 (1ms) [req_0c18fa383f7a1a7c4fdce52f1d30cd85]
+artifact verified artifact=11 owner=patch arch=x86_64 bytes=117558
+audit audit_id=34 timestamp=2026-11-27T18:06:44.659342Z request_id=req_cf61cf4ba66dd3440d2929f5e060ad33 operation=artifact.upload route=POST /api/v1/uploads/{token} method=POST actor_id=1 actor=owner@self-host.local actor_credential=bootstrap:9c3ee3a9476d app_id=04e3cc80-852c-5f26-ed7f-ed04642de1c3 release_id=1 patch_id=2 patch_number=2 result=success http_status=204 detail={"artifact_id":11,"owner_kind":"patch","arch":"x86_64","platform":"android"}
+POST /api/v1/uploads/5a9206a6826a1c36aa98eb6b2667e573 -> 204 (3ms) [req_cf61cf4ba66dd3440d2929f5e060ad33]
+GET /api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3/channels -> 200 (0ms) [req_be6b0d468fa33089ebdd71801f4124f0]
+audit audit_id=35 timestamp=2026-11-27T18:06:44.667460Z request_id=req_b911f276ef7fb2936ea05c70dd749f2d operation=patch.promote route=POST /api/v1/apps/{app}/patches/promote method=POST actor_id=1 actor=owner@self-host.local actor_credential=bootstrap:9c3ee3a9476d app_id=04e3cc80-852c-5f26-ed7f-ed04642de1c3 release_id=1 patch_id=2 patch_number=2 track=stable result=success http_status=204 detail={"channel_id":1,"rollout":100}
+POST /api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3/patches/promote -> 204 (1ms) [req_b911f276ef7fb2936ea05c70dd749f2d]
+audit audit_id=36 timestamp=2026-11-27T18:06:44.675212Z request_id=req_87bd510a78a3dd8ba2df5bb14d4c6063 operation=build_run.record route=POST /api/v1/apps/{app}/runs method=POST actor_id=1 actor=owner@self-host.local actor_credential=bootstrap:9c3ee3a9476d app_id=04e3cc80-852c-5f26-ed7f-ed04642de1c3 result=success http_status=201
+POST /api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3/runs -> 201 (2ms) [req_87bd510a78a3dd8ba2df5bb14d4c6063]
+POST /api/v1/patches/check -> 200 (1ms) [req_2609fe42723ecb13f42e6dce111a5e47]
+GET /download/b2f7b2a1d04809c95882687a813fa0b5 -> 200 (0ms) [req_79a7c9ac47c6219e0bdb0b0b272f8306]
+patches/events body={"event":{"app_id":"04e3cc80-852c-5f26-ed7f-ed04642de1c3","arch":"aarch64","client_id":"aed30cce-6117-40de-b792-0935551a3c77","type":"__patch_download__","patch_number":2,"platform":"android","release_version":"1.0.0+1","host_bundle_id":"dev.selfhost.untab.android","timestamp":1795802808,"message":null,"event_id":"77aa50b3-9d82-49a8-b548-2c05c68c89e1","updater_revision":"64a458f034c8"}}
+POST /api/v1/patches/events -> 204 (1ms) [req_3d484a0acb19d233ff2c8d40e25670a5]
+patches/events body={"event":{"app_id":"04e3cc80-852c-5f26-ed7f-ed04642de1c3","arch":"aarch64","client_id":"aed30cce-6117-40de-b792-0935551a3c77","type":"__patch_install__","patch_number":2,"platform":"android","release_version":"1.0.0+1","host_bundle_id":"dev.selfhost.untab.android","timestamp":1795802837,"message":null,"event_id":"f954544c-47d2-4e08-a0e0-0ab68bf74289","updater_revision":"64a458f034c8"}}
+POST /api/v1/patches/events -> 204 (0ms) [req_af5ff7053ab7c8e82ddaee3452b86423]
+POST /api/v1/patches/check -> 200 (0ms) [req_79cc333a68465f6dcfc9b87bd3c85f53]
+POST /api/v1/patches/check -> 200 (6ms) [req_3a81207878e5f82fc51c2402f5f63579]
+GET /api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3/releases -> 200 (1ms) [req_72b16b1d5baca6334e79903c1dd8faaa]
+GET /api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3/releases/1/patches -> 200 (3ms) [req_1dad17cc30ca17afdfab4ed613fa5edd]
+GET /api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3/releases -> 200 (0ms) [req_0d45a70e4eb7ca2a7652196a134feab7]
+GET /api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3/releases/1/patches -> 200 (1ms) [req_ff78f674e836efc438b3381317d86fb5]
+audit audit_id=38 timestamp=2026-11-27T18:08:13.073761Z request_id=req_6b66a5f1238f8009a4b6237da2ed6474 operation=patch.withdraw route=POST /api/v1/apps/{app}/releases/{release}/patches/{patch}/rollback method=POST actor_id=1 actor=owner@self-host.local actor_credential=bootstrap:9c3ee3a9476d app_id=04e3cc80-852c-5f26-ed7f-ed04642de1c3 release_id=1 patch_id=2 patch_number=2 track=stable result=success http_status=200 detail={"rollback":true,"changed":true,"was_active":true,"channels":["stable"],"restored":[{"patch_id":1,"number":1,"channel":"stable","rollout":100}]}
+POST /api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3/releases/1/patches/2/rollback -> 200 (5ms) [req_6b66a5f1238f8009a4b6237da2ed6474]
+POST /api/v1/patches/check -> 200 (1ms) [req_e5085f27eceebec4286b0361f8857537]
+GET /download/05fc1b8bc8ec06faea6bc63ac1eb6c07 -> 200 (0ms) [req_53fd48202ffc49ed95751bb4fec854d0]
+patches/events body={"event":{"app_id":"04e3cc80-852c-5f26-ed7f-ed04642de1c3","arch":"aarch64","client_id":"aed30cce-6117-40de-b792-0935551a3c77","type":"__patch_download__","patch_number":1,"platform":"android","release_version":"1.0.0+1","host_bundle_id":"dev.selfhost.untab.android","timestamp":1795802897,"message":null,"event_id":"a0080d34-e61f-4efe-b051-a21ceee9f5d3","updater_revision":"64a458f034c8"}}
+POST /api/v1/patches/events -> 204 (1ms) [req_5885f35b933b64c5ac4b9877bbb6d6cd]
+patches/events body={"event":{"app_id":"04e3cc80-852c-5f26-ed7f-ed04642de1c3","arch":"aarch64","client_id":"aed30cce-6117-40de-b792-0935551a3c77","type":"__patch_install__","patch_number":1,"platform":"android","release_version":"1.0.0+1","host_bundle_id":"dev.selfhost.untab.android","timestamp":1795802927,"message":null,"event_id":"81586a37-0fd9-4680-b4f6-a831a622cab6","updater_revision":"64a458f034c8"}}
+POST /api/v1/patches/events -> 204 (0ms) [req_da45e03f911ac774b5409436f96b9aa3]
+POST /api/v1/patches/check -> 200 (0ms) [req_77f1db289ec433bf6f8fc3a17a74d460]
+POST /api/v1/patches/check -> 200 (0ms) [req_ecfdef28ef4020d5bb95d9fb57cd0daf]
+shutting down signal=SIGTERM

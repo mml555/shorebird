@@ -85,6 +85,10 @@ class DartSdkCompatibility {
   /// these four are listed; an engine we merely have not recorded is not
   /// withdrawn. 64abe347 and 97f91aff stay in [expectedDartSdkRevisions] as a
   /// record of their Dart SDK pairing, though [validate] refuses them first.
+  /// 88a7bf8c and 83198f59 are superseded by c9208259 but are not listed:
+  /// refusing them would block patching apps already released on them, and
+  /// their defect (an app aborts before main when a patch payload does not
+  /// load) needs a payload that the matching compiler does not produce.
   /// See selfhost/compatibility.yaml.
   static const withdrawnRevisions = <String, String>{
     // Withdrawn: their Dart SDK zips carry a stale revision label.
@@ -246,7 +250,7 @@ class WithdrawnEngineException implements Exception {
   final String reason;
 
   /// The supported cell.
-  static const supportedCell = '83198f59';
+  static const supportedCell = 'c9208259';
 
   @override
   String toString() =>

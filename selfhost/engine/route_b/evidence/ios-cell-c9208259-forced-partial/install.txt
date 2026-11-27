@@ -1,0 +1,17 @@
+[....] Waiting for iOS device to be connected
+[....] Using 8cb4bc982ddf6437b1952520edee80f898196c74 (D10AP, iPhone 7, iphoneos, arm64, 15.8.8, 19H422) a.k.a. '<device name redacted>'.
+------ Install phase ------
+[  0%] Found 8cb4bc982ddf6437b1952520edee80f898196c74 (D10AP, iPhone 7, iphoneos, arm64, 15.8.8, 19H422) a.k.a. '<device name redacted>' connected through USB, beginning install
+[ 52%] CreatingStagingDirectory
+[ 57%] ExtractingPackage
+[ 60%] InspectingPackage
+[ 60%] TakingInstallLock
+[ 65%] PreflightingApplication
+[ 65%] InstallingEmbeddedProfile
+[ 70%] VerifyingApplication
+[ 75%] CreatingContainer
+[ 80%] InstallingApplication
+[ 85%] PostflightingApplication
+[ 90%] SandboxingApplication
+[ 95%] GeneratingApplicationMap
+[100%] Installed package ~/Developer/shorebird-wt/devrun/run-c9208259/signed/Runner.app

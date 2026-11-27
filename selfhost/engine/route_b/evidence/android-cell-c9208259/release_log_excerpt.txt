@@ -1,0 +1,175 @@
+[env] SHOREBIRD_TOKEN detected
+[env] SHOREBIRD_TOKEN parsed as API key
+[Process.run] git for-each-ref --contains 246fd6f6fc70f2c4a7fb9b563eda5fcdccba2104 --format %(refname:short) refs/remotes/origin/flutter_release/* (in ~/Developer/shorebird-wt/devrun/run-c9208259/cli/bin/cache/flutter/246fd6f6fc70f2c4a7fb9b563eda5fcdccba2104)
+Exited with code 0
+[Process.run] git for-each-ref --contains 246fd6f6fc70f2c4a7fb9b563eda5fcdccba2104 --format %(refname:short) refs/remotes/origin/flutter_release/* (in ~/Developer/shorebird-wt/devrun/run-c9208259/cli/bin/cache/flutter/246fd6f6fc70f2c4a7fb9b563eda5fcdccba2104)
+Exited with code 0
+No checksum provided for patch, skipping file corruption validation
+Starting Downloading aot-tools.dill......
+[HTTP] GET http://127.0.0.1:18185/download.shorebird.dev/shorebird/c920825972cdc7e096fa114bbb616b306914c4c7/aot-tools.dill
+[cache] optional artifact: "aot-tools.dill" was not found, skipping...
+Cancelled Downloading aot-tools.dill...
+No checksum provided for analyze-snapshot-macos-arm64, skipping file corruption validation
+...
+168:[        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+172:[        ] Artifact Instance of 'WindowsEngineArtifacts' is not required, skipping update.
+173:[        ] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+174:[        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+196:[ +176 ms] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+202:[        ] Artifact Instance of 'WindowsEngineArtifacts' is not required, skipping update.
+203:[        ] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+204:[        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+533:COHERENT platform=android engine=c920825972cdc7e096fa114bbb616b306914c4c7 | iOS Route B capability: NOT EVALUATED | iOS engine identity: NOT EVALUATED
+795:[        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+799:[        ] Artifact Instance of 'WindowsEngineArtifacts' is not required, skipping update.
+800:[        ] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+801:[        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+825:[        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+827:[        ] Artifact Instance of 'FlutterEngineStamp' is not required, skipping update.
+832:[        ] Artifact Instance of 'WindowsEngineArtifacts' is not required, skipping update.
+833:[        ] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+834:[        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+842:[        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+844:[        ] Artifact Instance of 'FlutterEngineStamp' is not required, skipping update.
+847:[        ] Artifact Instance of 'WindowsEngineArtifacts' is not required, skipping update.
+848:[        ] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+849:[        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+971:[        ] Kotlin source files: ~/Developer/shorebird-wt/devrun/run-c9208259/cli/bin/cache/flutter/246fd6f6fc70f2c4a7fb9b563eda5fcdccba2104/packages/flutter_tools/gradle/src/main/kotlin/VersionUtils.kt, ~/Developer/shorebird-wt/devrun/run-c9208259/cli/bin/cache/flutter/246fd6f6fc70f2c4a7fb9b563e
+1255:[        ] [        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+1259:[        ] [        ] Artifact Instance of 'WindowsEngineArtifacts' is not required, skipping update.
+1260:[        ] [        ] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+1261:[        ] [        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+1285:[        ] [        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+1287:[        ] [        ] Artifact Instance of 'FlutterEngineStamp' is not required, skipping update.
+1292:[        ] [        ] Artifact Instance of 'WindowsEngineArtifacts' is not required, skipping update.
+1293:[        ] [        ] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+1294:[        ] [        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+1302:[        ] [        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+1304:[        ] [        ] Artifact Instance of 'FlutterEngineStamp' is not required, skipping update.
+1307:[        ] [        ] Artifact Instance of 'WindowsEngineArtifacts' is not required, skipping update.
+1308:[        ] [        ] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+1309:[        ] [        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+2915:[        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+2919:[        ] Artifact Instance of 'WindowsEngineArtifacts' is not required, skipping update.
+2920:[        ] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+2921:[        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+2945:[        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+2947:[        ] Artifact Instance of 'FlutterEngineStamp' is not required, skipping update.
+2952:[        ] Artifact Instance of 'WindowsEngineArtifacts' is not required, skipping update.
+2953:[        ] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+2954:[        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+2962:[        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+2964:[        ] Artifact Instance of 'FlutterEngineStamp' is not required, skipping update.
+2967:[        ] Artifact Instance of 'WindowsEngineArtifacts' is not required, skipping update.
+2968:[        ] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+2969:[        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+3525:[        ] [        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+3529:[        ] [        ] Artifact Instance of 'WindowsEngineArtifacts' is not required, skipping update.
+3530:[        ] [        ] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+3531:[        ] [        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+3555:[        ] [        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+3557:[        ] [        ] Artifact Instance of 'FlutterEngineStamp' is not required, skipping update.
+3562:[        ] [        ] Artifact Instance of 'WindowsEngineArtifacts' is not required, skipping update.
+3563:[        ] [        ] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+3564:[        ] [        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+3572:[        ] [        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+3574:[        ] [        ] Artifact Instance of 'FlutterEngineStamp' is not required, skipping update.
+3577:[        ] [        ] Artifact Instance of 'WindowsEngineArtifacts' is not required, skipping update.
+3578:[        ] [        ] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+3579:[        ] [        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+3984:[        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+3988:[        ] Artifact Instance of 'WindowsEngineArtifacts' is not required, skipping update.
+3989:[        ] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+3990:[        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+4188:[        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+4192:[        ] Artifact Instance of 'WindowsEngineArtifacts' is not required, skipping update.
+4193:[        ] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+4194:[        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+4392:[        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+4396:[        ] Artifact Instance of 'WindowsEngineArtifacts' is not required, skipping update.
+4397:[        ] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+4398:[        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+4601:[        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+4605:[        ] Artifact Instance of 'WindowsEngineArtifacts' is not required, skipping update.
+4606:[        ] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+4607:[        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+4805:[        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+4809:[        ] Artifact Instance of 'WindowsEngineArtifacts' is not required, skipping update.
+4810:[        ] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+4811:[        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+5009:[        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+5013:[        ] Artifact Instance of 'WindowsEngineArtifacts' is not required, skipping update.
+5014:[        ] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+5015:[        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+5103:🕹️  Platform: android
+5105:🔏 Patch Signing: your key
+5143:✅ Published Release 1.0.0+1!
+...
+Exited with code 0
+
+🚀 Ready to create a new release!
+
+📱 App: shapes-android-c9208259 (04e3cc80-852c-5f26-ed7f-ed04642de1c3)
+📦 Release Version: 1.0.0+1
+🕹️  Platform: android
+🐦 Flutter Version: unknown (246fd6f6fc)
+🔏 Patch Signing: your key
+
+Starting Fetching releases...
+[HTTP] GET http://localhost:18290/api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3/releases
+Done Fetching releases
+Starting Creating release...
+[Process.run] git for-each-ref --contains 246fd6f6fc70f2c4a7fb9b563eda5fcdccba2104 --format %(refname:short) refs/remotes/origin/flutter_release/* (in ~/Developer/shorebird-wt/devrun/run-c9208259/cli/bin/cache/flutter/246fd6f6fc70f2c4a7fb9b563eda5fcdccba2104)
+Exited with code 0
+[HTTP] POST http://localhost:18290/api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3/releases
+[HTTP] PATCH http://localhost:18290/api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3/releases/1
+Done Creating release
+Starting Updating release status...
+[HTTP] PATCH http://localhost:18290/api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3/releases/1
+Done Updating release status
+Starting Uploading artifacts...
+Uploading arm artifact from /var/folders/kw/82hmq60x5ynb8s67m_vmfjjh0000gn/T/shorebird_aab_libappsuN31dv/armeabi-v7a/libapp.so
+[HTTP] POST http://localhost:18290/api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3/releases/1/artifacts
+[HTTP] POST http://localhost:18290/api/v1/uploads/7a51a694a4ebf1ec3a6b99654cf7b561
+Uploading aarch64 artifact from /var/folders/kw/82hmq60x5ynb8s67m_vmfjjh0000gn/T/shorebird_aab_libappsuN31dv/arm64-v8a/libapp.so
+[HTTP] POST http://localhost:18290/api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3/releases/1/artifacts
+[HTTP] POST http://localhost:18290/api/v1/uploads/f89396bf82a81330ddbeecdcccdf3dc1
+Uploading x86_64 artifact from /var/folders/kw/82hmq60x5ynb8s67m_vmfjjh0000gn/T/shorebird_aab_libappsuN31dv/x86_64/libapp.so
+[HTTP] POST http://localhost:18290/api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3/releases/1/artifacts
+[HTTP] POST http://localhost:18290/api/v1/uploads/cd526dd9c57de419e8406d020566f473
+Uploading aab artifact from ~/Developer/shorebird-wt/devrun/android-c9208259/work/untab/build/app/outputs/bundle/release/app-release.aab
+[HTTP] POST http://localhost:18290/api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3/releases/1/artifacts
+[HTTP] POST http://localhost:18290/api/v1/uploads/8808581d436015e11e9cf1282954e5c6
+Done Uploading artifacts
+Starting Uploading supplement artifacts...
+Uploading supplement artifact from /var/folders/kw/82hmq60x5ynb8s67m_vmfjjh0000gn/T/vwuNXM/android_supplement.zip
+[HTTP] POST http://localhost:18290/api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3/releases/1/artifacts
+[HTTP] POST http://localhost:18290/api/v1/uploads/6e7add3dc329c5bc7b2f2e86e076edf0
+Done Uploading supplement artifacts
+Build trace summary written to ~/Developer/shorebird-wt/devrun/android-c9208259/work/untab/build/shorebird/debug/build-trace-android-summary.json
+Starting Updating release status...
+[HTTP] PATCH http://localhost:18290/api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3/releases/1
+Done Updating release status
+
+✅ Published Release 1.0.0+1!
+Your next step is to upload the app bundle to the Play Store:
+~/Developer/shorebird-wt/devrun/android-c9208259/work/untab/build/app/outputs/bundle/release/app-release.aab
+
+Or distribute the apk:
+~/Developer/shorebird-wt/devrun/android-c9208259/work/untab/build/app/outputs/flutter-apk/app-release.apk
+
+For information on uploading to the Play Store, see:
+https://support.google.com/googleplay/android-developer/answer/9859152?hl=en
+
+To create a patch for this release, run shorebird patch --platforms=android --release-version=1.0.0+1
+[HTTP] POST http://localhost:18290/api/v1/apps/04e3cc80-852c-5f26-ed7f-ed04642de1c3/runs
+[Process.run] git symbolic-ref HEAD (in ~/Developer/shorebird-wt/devrun/run-c9208259/cli/bin/cache)
+Exited with code 128
+
+stderr:
+fatal: ref HEAD is not a symbolic ref
+
+Unable to check for updates.
+ProcessException: fatal: ref HEAD is not a symbolic ref
+
+  Command: git symbolic-ref HEAD

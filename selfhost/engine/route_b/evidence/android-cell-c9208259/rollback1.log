@@ -1,0 +1,15 @@
+Starting Fetching releases...
+Done Fetching releases
+Starting Fetching patches...
+Done Fetching patches
+Starting Rolling back patch 2...
+Done Rolling back patch 2
+Patch 2 on release 1.0.0+1 has been rolled back.
+ID:          2
+Number:      2
+Track:       stable
+Rolled back: yes
+Artifacts:
+  android  arm          124.13 KB
+  android  aarch64      111.71 KB
+  android  x86_64       114.80 KB

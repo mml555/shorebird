@@ -1,0 +1,11 @@
+  added shorebird.yaml to flutter assets
+release exit=0
+Unable to check for updates.
+ProcessException: fatal: ref HEAD is not a symbolic ref
+
+  Command: git symbolic-ref HEAD
+--extra-gen-snapshot-options=--route_b_untabled_overrides
+SIGN_OK
+CFBundleIdentifier=dev.selfhost.untab version=1.0.0+80
+[100%] Installed package ~/Developer/shorebird-wt/devrun/run-c9208259/signed/Runner.app
+RELEASE_DONE
