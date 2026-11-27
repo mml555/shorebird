@@ -10,10 +10,13 @@
 // selector does not exist in the release; --retarget-last renames the last real
 // target to such a selector, so the forged patch has one real target fewer than
 // the one built; --reuse-first-payload gives the last real target the first
-// target's payload. It signs the new bytes the way the CLI does and publishes
-// the result as a NEW patch on the same release. The CLI refuses such a patch
-// before upload, by design; this tool is the only way one reaches the server,
-// and it must never be wired into the shipping CLI.
+// target's payload; --bad-format-last changes the bytecode format version of
+// the last real target's payload; --unresolve-last renames a library URI the
+// last payload references to one no release has. It signs the new bytes the
+// way the CLI does and publishes the result as a NEW patch on the same
+// release. The CLI refuses such a patch before upload, by design; this tool is
+// the only way one reaches the server, and it must never be wired into the
+// shipping CLI.
 //
 // Usage: see selfhost/engine/route_b/device_run/README.md ("Forced partial
 // patch").
@@ -46,9 +49,169 @@ const acknowledgeFlag = 'i-know-this-is-a-test-patch';
 /// Required, in addition to `--channel stable`, to promote to `stable`.
 const allowStableFlag = 'allow-stable';
 
+/// The library URI `--unresolve-last` renames when none is given: every
+/// release has it.
+const defaultUnresolveUri = 'dart:core';
+
 /// The selector of the appended target when none is given. Clearly fake, and
 /// absent from any release.
 const defaultBogusSelector = 'selfhost_forged_partial_patch_no_such_selector';
+
+/// The bytecode format version word written by `--bad-format-last`: no VM
+/// reads it (the VM reads 3, `KernelBytecode::kBytecodeFormatVersion`).
+const badBytecodeFormatVersion = 0xFFFFFFFF;
+
+/// Replaces [uri] in [payload], a Dart bytecode binary, by a same-length URI
+/// that no release has, and returns the new bytes; [payload] is not changed.
+///
+/// The binary is little-endian (`Reader::ReadUInt32` in
+/// `runtime/vm/bytecode_reader.h`): uint32 magic `0x44424333`, uint32 format
+/// version, uint32 stringTable.numItems, uint32 stringTable offset, and so on.
+/// The string table at that offset is uint32 numOneByteStrings, uint32
+/// numTwoByteStrings, one uint32 end offset per string (one-byte strings
+/// first), then the contents concatenated without separators; a string
+/// starts where the one before it ends. Library URIs are strings of that
+/// table, and a bytecode string is named by its index, never by its
+/// position, so changing the characters of one entry without changing its
+/// length moves nothing.
+///
+/// Only a string that equals [uri] is changed, which is the only way to be
+/// sure no other string changes: a scan of the raw bytes also hits the
+/// neighbour that begins with [uri] (`dart:core_patch`), and two entries
+/// that meet inside the concatenated contents. The tool refuses if no string
+/// equals [uri], if any other string contains [uri], or if the replacement
+/// is already a string of the table. The replacement is [uri] with its last
+/// character replaced by `_` (`dart:core` becomes `dart:cor_`), or by `~`
+/// if that character is already `_`.
+///
+/// Throws [ForgeException] if [payload] does not start with the bytecode
+/// magic or its string table is not readable.
+Uint8List unresolveLibraryUri(Uint8List payload, String uri) {
+  _requireBytecodeMagic(payload);
+  if (uri.isEmpty || uri.codeUnits.any((c) => c > 0x7f)) {
+    throw ForgeException('--unresolve-uri must be a non-empty ASCII URI.');
+  }
+  final bytes = ByteData.sublistView(payload);
+  int word(int offset) {
+    if (offset < 0 || offset > payload.length - 4) {
+      throw ForgeException(
+        'the payload ends inside its header or string table: not a bytecode '
+        'binary this tool understands.',
+      );
+    }
+    return bytes.getUint32(offset, Endian.little);
+  }
+
+  final tableOffset = word(12);
+  final oneByte = word(tableOffset);
+  final twoByte = word(tableOffset + 4);
+  final ends = tableOffset + 8;
+  final contents = ends + (oneByte + twoByte) * 4;
+  if (oneByte + twoByte > payload.length) {
+    throw ForgeException('the payload string table is not readable.');
+  }
+  // [start, end) of every string, in file offsets.
+  final spans = <(int, int)>[];
+  var start = contents;
+  for (var i = 0; i < oneByte + twoByte; i++) {
+    final end = contents + word(ends + i * 4);
+    if (end < start || end > payload.length) {
+      throw ForgeException('the payload string table is not readable.');
+    }
+    spans.add((start, end));
+    start = end;
+  }
+
+  final wanted = uri.codeUnits;
+  final last = uri.codeUnitAt(uri.length - 1);
+  final replacement = [
+    ...wanted.take(wanted.length - 1),
+    if (last == 0x5f) 0x7e else 0x5f,
+  ];
+  bool at(int from, List<int> text) {
+    for (var i = 0; i < text.length; i++) {
+      if (payload[from + i] != text[i]) return false;
+    }
+    return true;
+  }
+
+  bool contains((int, int) span, List<int> text, {required bool utf16}) {
+    final step = utf16 ? 2 : 1;
+    final width = text.length * step;
+    for (var p = span.$1; p + width <= span.$2; p++) {
+      var hit = true;
+      for (var i = 0; i < text.length && hit; i++) {
+        hit =
+            payload[p + i * step] == text[i] &&
+            (!utf16 || payload[p + i * step + 1] == 0);
+      }
+      if (hit) return true;
+    }
+    return false;
+  }
+
+  final exact = <int>[];
+  for (var i = 0; i < spans.length; i++) {
+    final span = spans[i];
+    final isOneByte = i < oneByte;
+    if (isOneByte &&
+        span.$2 - span.$1 == wanted.length &&
+        at(span.$1, wanted)) {
+      exact.add(i);
+    } else if (contains(span, wanted, utf16: !isOneByte)) {
+      final shown = isOneByte
+          ? String.fromCharCodes(payload.sublist(span.$1, span.$2))
+          : '(a two-byte string)';
+      throw ForgeException(
+        'the payload has a longer string containing $uri, $shown: replacing '
+        '$uri would risk changing a different string. Pick another '
+        '--unresolve-uri.',
+      );
+    }
+    if (isOneByte &&
+        span.$2 - span.$1 == replacement.length &&
+        at(span.$1, replacement)) {
+      throw ForgeException(
+        'the payload already has the string '
+        '${String.fromCharCodes(replacement)}, the replacement for $uri.',
+      );
+    }
+  }
+  if (exact.isEmpty) {
+    throw ForgeException(
+      'the last payload does not reference $uri: no string of its table '
+      'equals it. Pick a URI the payload has.',
+    );
+  }
+  final forged = Uint8List.fromList(payload);
+  for (final i in exact) {
+    forged.setRange(spans[i].$1, spans[i].$2, replacement);
+  }
+  return forged;
+}
+
+void _requireBytecodeMagic(Uint8List payload) {
+  if (payload.length < 16 ||
+      ByteData.sublistView(payload).getUint32(0, Endian.little) != 0x44424333) {
+    throw ForgeException(
+      'the last payload does not start with the Dart bytecode magic '
+      '(0x44424333, bytes 33 43 42 44): not a bytecode binary, so the tool '
+      'will not forge it blind.',
+    );
+  }
+}
+
+/// [payload] with its bytecode format version word (the uint32 after the
+/// magic, little-endian, bytes 4 to 7) set to [badBytecodeFormatVersion].
+/// Throws [ForgeException] if [payload] does not start with the magic.
+Uint8List badFormatPayload(Uint8List payload) {
+  _requireBytecodeMagic(payload);
+  final forged = Uint8List.fromList(payload);
+  ByteData.sublistView(
+    forged,
+  ).setUint32(4, badBytecodeFormatVersion, Endian.little);
+  return forged;
+}
 
 /// Returns [container]'s bytes with its last target made to fail: the release
 /// build id is unchanged and every target before the failing one keeps its
@@ -74,6 +237,26 @@ const defaultBogusSelector = 'selfhost_forged_partial_patch_no_such_selector';
 /// 64abe347 crash on it, as on the default container. It needs a container
 /// with at least two targets whose last payload differs from the first.
 ///
+/// With [badFormatLast], the last target keeps its library, selector and
+/// payload, except that the payload's bytecode format version word is set to
+/// a value no VM reads ([badFormatPayload]). Engines up to 88a7bf8c abort
+/// before main (`Unsupported Dart bytecode format version`); the engine that
+/// follows refuses it as `invalid-bytecode` (`ROUTEB: payload does not load,
+/// refused: REASON`) and rolls back the targets before it. It needs a
+/// container with at least two targets whose last payload differs from the
+/// first.
+///
+/// With [unresolveLast], the last target keeps its library and selector, and
+/// its payload has every string equal to [unresolveUri] replaced by a
+/// same-length URI no release has ([unresolveLibraryUri]); the binary's
+/// structure and offsets are unchanged. Engines up to 88a7bf8c abort before
+/// main (`Unable to find library ...`); the engine that follows refuses it
+/// as `invalid-bytecode` and rolls back the targets before it. Same
+/// container requirements as [badFormatLast].
+///
+/// At most one of [retargetLast], [reuseFirstPayload], [badFormatLast] and
+/// [unresolveLast]. Every target before the last is kept byte for byte.
+///
 /// Throws [FormatException] if [container] is not a container, and
 /// [ForgeException] if it has no target to keep first.
 Uint8List forgePartialContainer(
@@ -81,15 +264,56 @@ Uint8List forgePartialContainer(
   String bogusSelector = defaultBogusSelector,
   bool retargetLast = false,
   bool reuseFirstPayload = false,
+  bool badFormatLast = false,
+  bool unresolveLast = false,
+  String unresolveUri = defaultUnresolveUri,
 }) {
   final parsed = RouteBContainer.parse(container);
   if (parsed.targets.isEmpty) {
     throw ForgeException('the container has no real target to keep first');
   }
-  if (retargetLast && reuseFirstPayload) {
+  final modes = [
+    if (retargetLast) '--retarget-last',
+    if (reuseFirstPayload) '--reuse-first-payload',
+    if (badFormatLast) '--bad-format-last',
+    if (unresolveLast) '--unresolve-last',
+  ];
+  if (modes.length > 1) {
     throw ForgeException(
-      '--retarget-last and --reuse-first-payload each forge the last target; '
-      'pick one.',
+      '${modes.join(', ')} each forge the last target; pick one.',
+    );
+  }
+  if (badFormatLast || unresolveLast) {
+    final flag = badFormatLast ? '--bad-format-last' : '--unresolve-last';
+    if (parsed.targets.length < 2) {
+      throw ForgeException(
+        '$flag needs a container with at least two targets (this one has '
+        '${parsed.targets.length}): the last is made to fail and the ones '
+        'before it are what the engine rolls back. Build the patch from two '
+        'edits in different functions.',
+      );
+    }
+    final first = parsed.targets.first;
+    final last = parsed.targets.last;
+    if (last.sha256Hex == first.sha256Hex) {
+      throw ForgeException(
+        "the last target already carries the first target's payload, so $flag "
+        'would also change the first target as the engine sees it. Build the '
+        'patch from edits whose payloads differ.',
+      );
+    }
+    return writeRouteBContainer(
+      releaseBuildId: parsed.releaseBuildId,
+      targets: [
+        ...parsed.targets.take(parsed.targets.length - 1),
+        RouteBPatchTarget(
+          library: last.library,
+          selector: last.selector,
+          bytecode: badFormatLast
+              ? badFormatPayload(last.bytecode)
+              : unresolveLibraryUri(last.bytecode, unresolveUri),
+        ),
+      ],
     );
   }
   if (reuseFirstPayload) {
@@ -245,6 +469,34 @@ ArgParser _parser() => ArgParser()
         'it as invalid-bytecode (the payload library is already loaded) and '
         'roll back; engines up to 64abe347 crash on it.',
   )
+  ..addFlag(
+    'bad-format-last',
+    negatable: false,
+    help:
+        "Set the last target's payload bytecode format version to a value no "
+        'VM reads, keeping its library, selector and the rest of the payload. '
+        'Needs two or more targets with distinct payloads. Engines up to '
+        '88a7bf8c abort before main (Unsupported Dart bytecode format '
+        'version); later ones refuse it as invalid-bytecode and roll back.',
+  )
+  ..addFlag(
+    'unresolve-last',
+    negatable: false,
+    help:
+        "Replace the library URI --unresolve-uri in the last target's payload "
+        'by a same-length URI no release has. Needs two or more targets with '
+        'distinct payloads. Engines up to 88a7bf8c abort before main (Unable '
+        'to find library); later ones refuse it as invalid-bytecode and roll '
+        'back.',
+  )
+  ..addOption(
+    'unresolve-uri',
+    defaultsTo: defaultUnresolveUri,
+    help:
+        'The library URI --unresolve-last renames; its last character becomes '
+        "'_' (dart:core becomes dart:cor_). It must equal a string of the "
+        'payload and no other string may contain it.',
+  )
   ..addOption('private-key', help: "The release's patch private key (PEM).")
   ..addOption('public-key', help: "The release's patch public key (PEM).")
   ..addOption('app-id', help: 'The app id (shorebird.yaml app_id).')
@@ -372,11 +624,20 @@ Future<void> _run(
     if (!f.existsSync()) throw ForgeException('${f.path} does not exist.');
   }
 
-  if ((r['reuse-first-payload'] as bool) && r.wasParsed('bogus-selector')) {
-    throw ForgeException(
-      '--bogus-selector has no effect with --reuse-first-payload, which keeps '
-      "the last target's real selector; drop one.",
-    );
+  for (final keeps in [
+    'reuse-first-payload',
+    'bad-format-last',
+    'unresolve-last',
+  ]) {
+    if ((r[keeps] as bool) && r.wasParsed('bogus-selector')) {
+      throw ForgeException(
+        '--bogus-selector has no effect with --$keeps, which keeps the last '
+        "target's real selector; drop one.",
+      );
+    }
+  }
+  if (r.wasParsed('unresolve-uri') && !(r['unresolve-last'] as bool)) {
+    throw ForgeException('--unresolve-uri only applies with --unresolve-last.');
   }
   final original = File(containerPath).readAsBytesSync();
   final forged = forgePartialContainer(
@@ -384,6 +645,9 @@ Future<void> _run(
     bogusSelector: r['bogus-selector'] as String,
     retargetLast: r['retarget-last'] as bool,
     reuseFirstPayload: r['reuse-first-payload'] as bool,
+    badFormatLast: r['bad-format-last'] as bool,
+    unresolveLast: r['unresolve-last'] as bool,
+    unresolveUri: r['unresolve-uri'] as String,
   );
   final signature = signAndVerify(
     forged,
@@ -406,6 +670,10 @@ Future<void> _run(
         ? ''
         : r['reuse-first-payload'] as bool
         ? "   <- carries target 1's payload, must fail"
+        : r['bad-format-last'] as bool
+        ? '   <- payload format version forged, must fail'
+        : r['unresolve-last'] as bool
+        ? '   <- payload library ${r['unresolve-uri']} renamed, must fail'
         : '   <- bogus, must fail';
     o.writeln('  ${i + 1}. ${t.library} :: ${t.selector}$mark');
   }

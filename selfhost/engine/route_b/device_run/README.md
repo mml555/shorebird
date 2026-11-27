@@ -117,13 +117,39 @@ dart run tool/route_b_forge_partial_patch.dart --i-know-this-is-a-test-patch \
   --dry-run    # forges and verifies, publishes nothing
 ```
 
-The tool forges the last target in one of three ways:
+The tool forges the last target in one of five ways (at most one flag):
 
 | Mode | Last target | Engine 88a7bf8c and later | Engines up to 64abe347 |
 | --- | --- | --- | --- |
 | default (append) | a new target with a bogus selector and a copy of the first payload | `REFUSED (target-missing)` | crash |
 | `--retarget-last` | the last real target, renamed to a bogus selector, with its own payload | `REFUSED (target-missing)` | `REFUSED (target-missing)` |
 | `--reuse-first-payload` | the last real target, with its own selector and the first target's payload | `REFUSED (invalid-bytecode)`, after `ROUTEB: payload library <uri> is already loaded` | crash |
+| `--bad-format-last` | the last real target, with its own selector, whose payload's bytecode format version word is `0xFFFFFFFF` | `REFUSED (invalid-bytecode)`, after `ROUTEB: payload does not load, refused: <reason>` (engines after 88a7bf8c) | up to 88a7bf8c: abort before main, `Unsupported Dart bytecode format version` |
+| `--unresolve-last` | the last real target, with its own selector, whose payload's `dart:core` (`--unresolve-uri`) is `dart:cor_` | `REFUSED (invalid-bytecode)`, after `ROUTEB: payload does not load, refused: <reason>` (engines after 88a7bf8c) | up to 88a7bf8c: abort before main, `Unable to find library ...` |
+
+The two load-failure modes (the column headings above do not fit them: the split
+is engines up to 88a7bf8c, which abort before main, against the engine that
+refuses and rolls back):
+
+- `--bad-format-last` keeps the payload byte for byte except bytes 4 to 7, the
+  uint32 format version after the magic. The Dart bytecode binary is
+  little-endian (`Reader::ReadUInt32` in `runtime/vm/bytecode_reader.h`): magic
+  `0x44424333` (bytes `33 43 42 44`), then the version, which the VM
+  requires to be 3 (`KernelBytecode::kBytecodeFormatVersion`). The tool refuses
+  to forge a payload that does not start with the magic.
+- `--unresolve-last` reads the payload's string table (header word at byte 12
+  is its offset; then the one-byte and two-byte string counts, one uint32 end
+  offset per string, and the contents concatenated). Every one-byte string
+  that equals the URI gets its last character replaced by `_` (`dart:core`
+  becomes `dart:cor_`; `~` if the URI already ends in `_`), so lengths and
+  offsets do not move. It refuses if no string equals the URI, if any other
+  string contains it (for example `dart:core_patch`), or if the replacement
+  string already exists. A raw byte search is not used: it would also hit
+  strings that meet inside the concatenated contents.
+- Both need two or more targets whose last payload differs from the first (the
+  tool checks), keep every earlier target unchanged, and cannot be combined with
+  `--retarget-last`, `--reuse-first-payload` or each other. `--bogus-selector`
+  has no effect with them.
 
 Engines up to 64abe347 (cell 97f91aff) load a target's payload before they look
 up its selector. When the payload's library is already loaded, the app crashes
