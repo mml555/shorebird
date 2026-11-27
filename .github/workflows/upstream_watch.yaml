@@ -24,7 +24,9 @@ concurrency:
 jobs:
   watch:
     # Hosted runner: reads only public repos and needs no home-runner state.
-    runs-on: ubuntu-latest
+    # The self-hosted home runner, like triage.yaml: hosted runners have been
+    # unavailable to this repo. It has gh, jq and curl.
+    runs-on: [self-hosted, linux, x64, shorebird]
     timeout-minutes: 10
     env:
       GH_TOKEN: ${{ github.token }}
