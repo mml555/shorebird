@@ -1,0 +1,112 @@
+name: Upstream watch
+
+# Detects when upstream Shorebird or Flutter ships something and keeps ONE open
+# issue ("Upstream watch", label `upstream`) current. The issue body holds the
+# table of ours vs upstream plus the last state as JSON in an HTML comment; a
+# run that finds a change rewrites the body and adds a comment listing what is
+# new, so the owner is notified only on change. Detection only: pulling an
+# update in is the manual promotion process (selfhost/TOOLCHAIN_PROMOTION.md).
+# Run by hand: tool/upstream_watch.sh --json
+
+on:
+  schedule:
+    - cron: "17 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  contents: read
+
+concurrency:
+  group: upstream-watch
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    # Hosted runner: reads only public repos and needs no home-runner state.
+    # The self-hosted home runner, like triage.yaml: hosted runners have been
+    # unavailable to this repo. It has gh, jq and curl.
+    runs-on: [self-hosted, linux, x64, shorebird]
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: tool/upstream_watch.sh
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Find the tracking issue
+        id: find
+        run: |
+          gh label create upstream --color 5319e7 \
+            --description "Upstream Shorebird or Flutter changes" 2>/dev/null || true
+          number=$(gh issue list --label upstream --state open --limit 100 \
+            --json number,title \
+            --jq '[.[] | select(.title == "Upstream watch")] | sort_by(.number) | .[0].number // empty')
+          echo "number=${number}" >> "$GITHUB_OUTPUT"
+          if [ -n "$number" ]; then
+            # The web editor saves CRLF line endings; strip them first.
+            gh issue view "$number" --json body --jq .body | tr -d '\r' > body.txt
+            # The state is the JSON between the two markers.
+            sed -n '/^<!-- upstream-watch-state$/,/^-->$/p' body.txt | sed '1d;$d' > previous.json
+          fi
+          # A missing, empty or unparseable state is a lost baseline, not "nothing new".
+          if jq -e 'type == "object" and length > 0' previous.json > /dev/null 2>&1; then
+            echo "baseline=ok" >> "$GITHUB_OUTPUT"
+          else
+            echo "baseline=lost" >> "$GITHUB_OUTPUT"
+            echo '{}' > previous.json
+          fi
+
+      - name: Check upstream
+        run: |
+          tool/upstream_watch.sh --report previous.json \
+            --out state.json --changes-file changes.md > report.md
+          cat report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Update the issue
+        env:
+          NUMBER: ${{ steps.find.outputs.number }}
+          BASELINE: ${{ steps.find.outputs.baseline }}
+        run: |
+          {
+            cat report.md
+            echo
+            echo "<!-- upstream-watch-state"
+            jq -S . state.json
+            echo "-->"
+          } > new_body.md
+
+          if [ -z "$NUMBER" ]; then
+            gh issue create --title "Upstream watch" --label upstream \
+              --body-file new_body.md
+            exit 0
+          fi
+
+          if [ "$BASELINE" != ok ]; then
+            gh issue edit "$NUMBER" --body-file new_body.md
+            gh issue comment "$NUMBER" --body "The saved state in this issue was missing or unreadable (the issue body was probably edited), so it was reset to the current state. Changes since the last good check are not listed. ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            exit 0
+          fi
+
+          # Keep the table current without notifying (an edit sends no email).
+          if [ "$(jq -S 'del(.generated_at)' previous.json)" != "$(jq -S 'del(.generated_at)' state.json)" ]; then
+            gh issue edit "$NUMBER" --body-file new_body.md
+          fi
+
+          if [ ! -s changes.md ]; then
+            echo "Nothing new to announce."
+            exit 0
+          fi
+
+          {
+            echo "New upstream changes ($(date -u +%F)):"
+            echo
+            cat changes.md
+            echo
+            echo "Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          } > comment.md
+          gh issue comment "$NUMBER" --body-file comment.md

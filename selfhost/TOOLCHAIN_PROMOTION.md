@@ -146,3 +146,18 @@ Re-run full R12 only when the pin changes something relevant to:
 
 Certification that fires on every pin becomes ritual; the point is to protect the
 property that actually failed here, which is **constructibility from owned bytes**.
+
+## Knowing when there is something to promote
+
+`.github/workflows/upstream_watch.yaml` runs daily and keeps one open issue,
+"Upstream watch" (label `upstream`). It compares what this fork supports
+(the top `shorebird:` entry of `selfhost/compatibility.yaml` on `main`) with
+upstream: the latest shorebirdtech/shorebird release and how many upstream
+`main` commits we lack, shorebirdtech/flutter's highest `flutter_release/*`
+branch, `shorebird/dev` and release-candidate version, shorebirdtech/updater's
+`main` and newest tag, and Flutter stable and beta. A comment, and so a
+notification, appears only when a field changed.
+
+The watch only detects. Pulling an update in is the promotion process above,
+by hand. To see the state now: `tool/upstream_watch.sh --json`, or
+`tool/upstream_watch.sh --report previous-state.json` for the diff.
