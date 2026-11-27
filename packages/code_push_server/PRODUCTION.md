@@ -196,7 +196,7 @@ it into a fresh stack requires you to supply, separately:
 # 2. Get the new image (the image pin in docker-compose.prod.yaml is the
 #    package version; CI fails if they differ).
 git pull                                  # get the new server source/image
-docker compose -f docker-compose.prod.yaml build server
+docker compose -f docker-compose.prod.yaml pull server   # the pin is a prebuilt image; `build` has nothing to build here
 
 # 3. Preflight: the new image validates this .env before anything is replaced.
 #    A release can add a rule (2.0.0 made IDP_ISSUER mandatory in production
