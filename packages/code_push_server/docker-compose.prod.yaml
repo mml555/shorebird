@@ -1,7 +1,8 @@
 # Production stack for the self-hosted code_push_server control plane.
 #
 #   1. cp .env.example .env   # then edit .env — set real secrets/domain
-#   2. docker compose -f docker-compose.prod.yaml up -d --build
+#   2. docker compose -f docker-compose.prod.yaml up -d
+#      (pulls the pinned prebuilt image; add --build if you uncommented build: below)
 #
 # Topology:
 #   caddy  ──TLS──▶ server ──▶ postgres  (metadata)

@@ -193,10 +193,16 @@ it into a fresh stack requires you to supply, separately:
 #    records the image that produced it.
 ./ops/backup.sh
 
-# 2. Get the new image (the image pin in docker-compose.prod.yaml is the
-#    package version; CI fails if they differ).
-git pull                                  # get the new server source/image
-docker compose -f docker-compose.prod.yaml build server
+# 2. Get the new image. The image pin in docker-compose.prod.yaml is the
+#    package version (CI fails if they differ), so updating the checkout
+#    moves the pin.
+git pull
+#    Prebuilt image (the default): fetch the newly pinned image.
+docker compose -f docker-compose.prod.yaml pull server
+#    From source (you uncommented `build:`): build it instead of pulling.
+#      docker compose -f docker-compose.prod.yaml build server
+#    A CPS_IMAGE that exists only on this host (a local build, a re-tagged
+#    rollback image): skip this step, there is nothing to pull.
 
 # 3. Preflight: the new image validates this .env before anything is replaced.
 #    A release can add a rule (2.0.0 made IDP_ISSUER mandatory in production
