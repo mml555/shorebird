@@ -1,0 +1,1496 @@
+[env] SHOREBIRD_TOKEN detected
+[env] SHOREBIRD_TOKEN parsed as API key
+[Process.run] git for-each-ref --contains b259cf5419ac79d1da59099b2ebbaa9f8f519877 --format %(refname:short) refs/remotes/origin/flutter_release/* (in ~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/flutter/b259cf5419ac79d1da59099b2ebbaa9f8f519877)
+Exited with code 0
+[WARN] No --track given, so this patch is published to the stable track, which reaches all users. A future release will require --track when it cannot ask. Pass --track=stable to keep publishing to stable, or --track=staging to test the patch before promoting it.
+No checksum provided for patch, skipping file corruption validation
+Starting Downloading aot-tools.dill......
+[HTTP] GET http://127.0.0.1:18185/download.shorebird.dev/shorebird/83198f598d638fb2b5848f64bb377f504185a3da/aot-tools.dill
+[cache] optional artifact: "aot-tools.dill" was not found, skipping...
+Cancelled Downloading aot-tools.dill...
+No checksum provided for analyze-snapshot-macos-arm64, skipping file corruption validation
+No checksum provided for analyze-snapshot-macos-x64, skipping file corruption validation
+Starting Fetching app...
+[HTTP] GET http://localhost:18290/api/v1/apps/7b5a01f3-8c40-0e01-ac03-5fd3b107e0ff
+Done Fetching app
+Starting Fetching releases...
+[HTTP] GET http://localhost:18290/api/v1/apps/7b5a01f3-8c40-0e01-ac03-5fd3b107e0ff/releases
+Done Fetching releases
+COHERENT platform=android engine=83198f598d638fb2b5848f64bb377f504185a3da | iOS Route B capability: NOT EVALUATED | iOS engine identity: NOT EVALUATED
+Starting Fetching release artifacts...
+[HTTP] GET http://localhost:18290/api/v1/apps/7b5a01f3-8c40-0e01-ac03-5fd3b107e0ff/releases/1/artifacts?arch=arm&platform=android
+[HTTP] GET http://localhost:18290/api/v1/apps/7b5a01f3-8c40-0e01-ac03-5fd3b107e0ff/releases/1/artifacts?arch=aarch64&platform=android
+[HTTP] GET http://localhost:18290/api/v1/apps/7b5a01f3-8c40-0e01-ac03-5fd3b107e0ff/releases/1/artifacts?arch=x86_64&platform=android
+Done Fetching release artifacts
+Starting Fetching aab artifact...
+[HTTP] GET http://localhost:18290/api/v1/apps/7b5a01f3-8c40-0e01-ac03-5fd3b107e0ff/releases/1/artifacts?arch=aab&platform=android
+Done Fetching aab artifact
+Starting Fetching android_supplement artifact...
+[HTTP] GET http://localhost:18290/api/v1/apps/7b5a01f3-8c40-0e01-ac03-5fd3b107e0ff/releases/1/artifacts?arch=android_supplement&platform=android
+Done Fetching android_supplement artifact
+Starting Downloading aab...
+[HTTP] GET http://localhost:18290/download/5f18e5c0ee925c7e475b8cbfc2f668ff?exp=1795745515&sig=86a69285b971c6ecaa1e543f738844caef315cec7d59427e7e7871e202ad3135
+Downloading aab (0%)...
+Done Downloading aab (100%)
+Starting Downloading android_supplement...
+[HTTP] GET http://localhost:18290/download/f66b3feb5833b825e991bb3d76845a9f?exp=1795745515&sig=e841509385a4f05d62e14065bbb29a9ee8a8752b6819dc67625dd51d73d92932
+Downloading android_supplement (100%)...
+Done Downloading android_supplement (100%)
+No checksum provided for patch, skipping file corruption validation
+Starting Downloading aot-tools.dill......
+[HTTP] GET http://127.0.0.1:18185/download.shorebird.dev/shorebird/83198f598d638fb2b5848f64bb377f504185a3da/aot-tools.dill
+[cache] optional artifact: "aot-tools.dill" was not found, skipping...
+Cancelled Downloading aot-tools.dill...
+No checksum provided for analyze-snapshot-macos-arm64, skipping file corruption validation
+No checksum provided for analyze-snapshot-macos-x64, skipping file corruption validation
+[Process.run] git for-each-ref --contains b259cf5419ac79d1da59099b2ebbaa9f8f519877 --format %(refname:short) refs/remotes/origin/flutter_release/* (in ~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/flutter/b259cf5419ac79d1da59099b2ebbaa9f8f519877)
+Exited with code 0
+[Process.run] git for-each-ref --contains b259cf5419ac79d1da59099b2ebbaa9f8f519877 --format %(refname:short) refs/remotes/origin/flutter_release/* (in ~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/flutter/b259cf5419ac79d1da59099b2ebbaa9f8f519877)
+Exited with code 0
+Building Android patch with Flutter unknown (b259cf5419)
+
+[Process.run] git for-each-ref --contains b259cf5419ac79d1da59099b2ebbaa9f8f519877 --format %(refname:short) refs/remotes/origin/flutter_release/* (in ~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/flutter/b259cf5419ac79d1da59099b2ebbaa9f8f519877)
+Exited with code 0
+Building the patch for the release's architectures: android-arm, android-arm64, android-x64
+[Process.run] ~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/flutter/b259cf5419ac79d1da59099b2ebbaa9f8f519877/bin/flutter build appbundle -h -v --verbose
+Exited with code 0
+
+stdout:
+Build an Android App Bundle file from your app.
+
+This command can build debug and release versions of an app bundle for your application. 'debug' builds support debugging and a quick development cycle. 'release' builds don't support debugging and are suitable for deploying to app stores. 
+ app bundle improves your app size
+
+Global options:
+-h, --help                      Print this usage information.
+-v, --verbose                   Noisy logging, including all shell commands executed.
+                                If used with "--help", shows hidden options. If used with "flutter doctor", shows additional diagnostic information. (Use "-vv" to force verbose logging in those cases.)
+    --prefixed-errors           Causes lines sent to stderr to be prefixed with "ERROR:".
+    --quiet                     Reduce the amount of output from some commands.
+    --[no-]wrap                 Toggles output word wrapping, regardless of whether or not the output is a terminal.
+                                (defaults to on)
+    --wrap-column               Sets the output wrap column. If not set, uses the width of the terminal. No wrapping occurs if not writing to a terminal. Use "--no-wrap" to turn off wrapping when connected to a terminal.
+-d, --device-id                 Target device id or name (prefixes allowed).
+    --version                   Reports the version of this tool.
+    --machine                   When used with the "--version" flag, outputs the information using JSON.
+    --[no-]color                Whether to use terminal colors (requires support for ANSI escape sequences).
+                                (defaults to on)
+    --[no-]version-check        Allow Flutter to check for updates when this command runs.
+                                (defaults to on)
+    --enable-analytics          Enable telemetry reporting each time a flutter or dart command runs.
+    --disable-analytics         Disable telemetry reporting each time a flutter or dart command runs, until it is re-enabled.
+    --suppress-analytics        Suppress analytics reporting for the current CLI invocation.
+    --packages                  Path to your "package_config.json" file.
+    --print-dtd                 Print the address of the Dart Tooling Daemon, if one is hosted by the Flutter CLI.
+
+Local build selection options (not normally required):
+    --local-engine-src-path     Path to your engine src directory, if you are building Flutter locally.
+                                Defaults to $FLUTTER_ENGINE if set, otherwise defaults to the path given in your pubspec.yaml dependency_overrides for sky_engine, if any.
+    --local-engine              Name of a build output within the engine out directory, if you are building Flutter locally.
+                                Use this to select a specific version of the engine if you have built multiple engine targets.
+                                This path is relative to "--local-engine-src-path" (see above).
+    --local-engine-host         The host operating system for which engine artifacts should be selected, if you are building Flutter locally.
+                                This is only used when "--local-engine" is also specified.
+                                By default, the host is determined automatically, but you may need to specify this if you are building on one platform (e.g. MacOS ARM64) but intend to run Flutter on another (e.g. Android).
+    --local-web-sdk             Name of a build output within the engine out directory, if you are building Flutter locally.
+                                Use this to select a specific version of the web sdk if you have built multiple engine targets.
+                                This path is relative to "--local-engine-src-path" (see above).
+
+Options for testing the "flutter" tool itself:
+    --show-test-device          List the special "flutter-tester" device in device listings. This headless device is used to test Flutter tooling.
+    --show-web-server-device    List the special "web-server" device in device listings.
+    --ci                        Enable a set of CI-specific test debug settings.
+    --debug-logs-dir            Path to a directory where logs for debugging may be added.
+
+Usage: flutter build appbundle [arguments]
+-h, --help                                                  Print this usage information.
+    --[no-]fatal-warnings                                   Causes the command to fail if warnings are sent to the console during its execution.
+    --[no-]tree-shake-icons                                 Tree shake icon fonts so that only glyphs used by the application are included.
+                                                            (defaults to on)
+-t, --target                                                The main entrypoint file of the application, as run on the device.
+                                                            If the "--target" option is omitted, but a file name is provided on the command line, then that file is used instead.
+                                                            (defaults to "lib/main.dart")
+    --[no-]pub                                              Whether to run "flutter pub get" before executing this command.
+                                                            (defaults to on)
+    --build-number=<1.0.0>                                  An identifier used as an internal version number.
+                                                            Each build must have a unique identifier to differentiate it from previous builds.
+    --build-name=<x.y.z>                                    A "x.y.z" string used as the version number shown to users.
+                                                            For each new version of your app, you will provide a version number to differentiate it.
+    --debug                                                 Build a debug version of your app.
+    --profile                                               Build a version of your app specialized for performance profiling.
+    --release                                               Build a release version of your app.
+    --jit-release                                           Build a JIT release version of your app.
+-D, --dart-define=<foo=bar>                                 Additional key-value pairs that will be available as constants from the String.fromEnvironment, bool.fromEnvironment, and int.fromEnvironment constructors. Multiple defines can be passed by repeating "--dart-define".
+    --dart-define-from-file=<use-keys.json>                 The path of a .json or .env file containing key-value pairs that will be available as environment variables. These can be accessed using the String.fromEnvironment, bool.fromEnvironment, and int.fromEnvironment constructors. Multiple define files can be passed by repeating "--dart-define-from-file".
+    --enable-experiment=<experiment-name>                   The name of an experimental Dart feature to enable. Multiple experiments can be enabled by repeating "--enable-experiment".
+    --flavor                                                Build a custom app flavor as defined by platform-specific build setup.
+                                                            Supports the use of product flavors in Android Gradle scripts, and the use of custom Xcode schemes.
+                                                            Overrides the value of the "default-flavor" entry in the flutter pubspec.
+    --[no-]shrink                                           This flag has no effect. Code shrinking is always enabled in release builds. To learn more, see: https://developer.android.com/studio/build/shrink-code
+    --split-debug-info=<v1.2.3/>                            In a release build, this flag reduces application size by storing Dart program symbols in a separate file on the host rather than in the application. The value of the flag should be a directory where program symbol files can be stored for later use. These symbol files contain the information needed to symbolize Dart stack traces. For an app built with this flag, the "flutter symbolize" command with the right program symbol file is required to obtain a human readable stack trace.
+                                                            This flag cannot be combined with "--analyze-size".
+    --[no-]obfuscate                                        In a release build, this flag removes identifiers and replaces them with randomized values for the purposes of source code obfuscation. This flag must always be combined with "--split-debug-info", the mapping between the values and the original identifiers is stored in the symbol map created in the specified directory. For an app built with this flag, the "flutter symbolize" command with the right program symbol file is required to obtain a human readable stack trace.
+                                                            Because all identifiers are renamed, methods like Object.runtimeType, Type.toString, Enum.toString, Stacktrace.toString, Symbol.toString (for constant symbols or those generated by runtime system) will return obfuscated results. Any code or tests that rely on exact names will break.
+    --extra-front-end-options=<--foo,--bar>                 A comma-separated list of additional command line arguments that will be passed directly to the Dart front end. For example, "--extra-front-end-options=--enable-experiment=nonfunction-type-aliases".
+    --extra-gen-snapshot-options=<--foo,--bar>              A comma-separated list of additional command line arguments that will be passed directly to the Dart native compiler. (Requires the "--release", "--profile", or "--jit-release" flag.)
+    --performance-measurement-file                          Output file name for performance measurement file.
+    --[no-]analyze-size                                     Whether to produce additional profile information for artifact output size. This flag is only supported on "--release" builds. When building for Android, a single ABI must be specified at a time with the "--target-platform" flag. When building for iOS, only the symbols from the arm64 architecture are used to analyze code size.
+                                                            This flag cannot be combined with "--split-debug-info".
+    --code-size-directory                                   The location to write code size analysis files. If this is not specified, files are written to a temporary directory under the build directory.
+    --[no-]track-widget-creation                            Track widget creation locations. This enables features such as the widget inspector. This parameter is only functional in debug mode (i.e. when compiling JIT, not AOT).
+                                                            (defaults to on)
+    --ignore-deprecation                                    Indicates that the app should ignore deprecation warnings and continue to build using deprecated APIs. Use of this flag may cause your app to fail to build when deprecated APIs are removed.
+    --[no-]enable-hcpp                                      Enable the use of the HCPP platform view rendering mode on the Impeller rendering backend. An explicit value takes priority over the EnableHcpp metadata in AndroidManifest.xml: build commands write it into the manifest of the artifact they produce, and "run", "test", and "drive" additionally apply it at launch. Without the flag, the manifest decides, and if the manifest does not set it either, the enable-hcpp feature flag does.
+    --[no-]android-gradle-daemon                            Whether to enable the Gradle daemon when performing an Android build.
+                                                            (defaults to on)
+    --[no-]android-skip-build-dependency-validation         Skips Android Gradle project dependency verification.
+-P, --android-project-arg                                   Additional arguments specified as key=value that are passed directly to the gradle project via the -P flag. These can be accessed in build.gradle via the "project.property" API.
+    --android-project-cache-dir=<path/to/project/cache/>    In an Android build, this flag allows the Gradle project cache directory to be specified to an absolute path. Setting this is roughly equivalent to setting the GRADLE_PROJECT_CACHE_DIR environment variable.
+    --shorebird-trace=<path/to/shorebird-trace.json>        Output a Chrome Trace Event Format JSON file for build profiling. The resulting file can be viewed at https://ui.perfetto.dev. Shorebird-specific; named to avoid colliding with any future upstream trace option.
+    --target-platform                                       The target platform for which the app is compiled.
+                                                            [android-arm (default), android-arm64 (default), android-x64 (default)]
+    --[no-]deferred-components                              Setting to false disables building with deferred components. All deferred code will be compiled into the base app, and assets act as if they were defined under the regular assets section in pubspec.yaml. This flag has no effect on non-deferred components apps.
+                                                            (defaults to on)
+    --[no-]validate-deferred-components                     When enabled, deferred component apps will fail to build if setup problems are detected that would prevent deferred components from functioning properly. The tooling also provides guidance on how to set up the project files to pass this verification. Disabling setup verification will always attempt to fully build the app regardless of any problems detected. Builds that are part of CI testing and advanced users with custom deferred components implementations should disable setup verification. This flag has no effect on non-deferred com
+                                                            (defaults to on)
+
+Run "flutter help" to see global options.
+
+[Process.start] ~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/flutter/b259cf5419ac79d1da59099b2ebbaa9f8f519877/bin/flutter build appbundle --release --target-platform=android-arm,android-arm64,android-x64 --shorebird-trace=~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/shorebird/debug/build-trace-android.json --verbose
+[   +1 ms] executing: [~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/flutter/b259cf5419ac79d1da59099b2ebbaa9f8f519877/] git -c log.showSignature=false log -n 1 --pretty=format:%H
+[   +8 ms] Exit code 0 from: git -c log.showSignature=false log -n 1 --pretty=format:%H
+[        ] b259cf5419ac79d1da59099b2ebbaa9f8f519877
+[        ] executing: [~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/flutter/b259cf5419ac79d1da59099b2ebbaa9f8f519877/] git tag --points-at b259cf5419ac79d1da59099b2ebbaa9f8f519877
+[   +9 ms] Exit code 0 from: git tag --points-at b259cf5419ac79d1da59099b2ebbaa9f8f519877
+[        ] selfhost-flutter-cell-83198f59
+[        ] executing: [~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/flutter/b259cf5419ac79d1da59099b2ebbaa9f8f519877/] git for-each-ref --contains b259cf5419ac79d1da59099b2ebbaa9f8f519877 --format %(refname:short) refs/remotes/origin/flutter_release/*
+[   +8 ms] Exit code 0 from: git for-each-ref --contains b259cf5419ac79d1da59099b2ebbaa9f8f519877 --format %(refname:short) refs/remotes/origin/flutter_release/*
+[        ] executing: [~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/flutter/b259cf5419ac79d1da59099b2ebbaa9f8f519877/] git for-each-ref --sort=-v:refname --count=1 --format=%(refname:short) refs/tags/[0-9]*.*.*
+[  +16 ms] Exit code 0 from: git for-each-ref --sort=-v:refname --count=1 --format=%(refname:short) refs/tags/[0-9]*.*.*
+[        ] 3.50.0
+[        ] executing: [~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/flutter/b259cf5419ac79d1da59099b2ebbaa9f8f519877/] git merge-base b259cf5419ac79d1da59099b2ebbaa9f8f519877 3.50.0
+[   +8 ms] Exit code 0 from: git merge-base b259cf5419ac79d1da59099b2ebbaa9f8f519877 3.50.0
+[        ] ab2912035e160d9cad6306df307576da6128ebdb
+[        ] executing: [~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/flutter/b259cf5419ac79d1da59099b2ebbaa9f8f519877/] git rev-list --count ab2912035e160d9cad6306df307576da6128ebdb..b259cf5419ac79d1da59099b2ebbaa9f8f519877
+[   +8 ms] Exit code 0 from: git rev-list --count ab2912035e160d9cad6306df307576da6128ebdb..b259cf5419ac79d1da59099b2ebbaa9f8f519877
+[        ] 273
+[  +19 ms] executing: [~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/flutter/b259cf5419ac79d1da59099b2ebbaa9f8f519877/] git symbolic-ref --short HEAD
+[        ] executing: [~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/flutter/b259cf5419ac79d1da59099b2ebbaa9f8f519877/] git symbolic-ref --short HEAD
+[   +6 ms] Exit code 128 from: git symbolic-ref --short HEAD
+[        ] fatal: ref HEAD is not a symbolic ref
+[   +6 ms] Exit code 128 from: git symbolic-ref --short HEAD
+[        ] fatal: ref HEAD is not a symbolic ref
+[ +224 ms] executing: /usr/bin/plutil -convert xml1 -o - /Applications/Android Studio.app/Contents/Info.plist
+[   +4 ms] Exit code 0 from: /usr/bin/plutil -convert xml1 -o - /Applications/Android Studio.app/Contents/Info.plist
+[        ] <?xml version="1.0" encoding="UTF-8"?>
+           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+           <plist version="1.0">
+           <dict>
+           	<key>CFBundleDevelopmentRegion</key>
+           	<string>English</string>
+           	<key>CFBundleDocumentTypes</key>
+           	<array>
+           		<dict>
+           			<key>CFBundleTypeExtensions</key>
+           			<array>
+           				<string>ipr</string>
+           			</array>
+           			<key>CFBundleTypeIconFile</key>
+           			<string>studio.icns</string>
+           			<key>CFBundleTypeName</key>
+           			<string>Android Studio Project File</string>
+           			<key>CFBundleTypeRole</key>
+           			<string>Editor</string>
+           		</dict>
+           		<dict>
+           			<key>CFBundleTypeExtensions</key>
+           			<array>
+           				<string>*</string>
+           			</array>
+           			<key>CFBundleTypeName</key>
+           			<string>All documents</string>
+           			<key>CFBundleTypeOSTypes</key>
+           			<array>
+           				<string>****</string>
+           			</array>
+           			<key>CFBundleTypeRole</key>
+           			<string>Editor</string>
+           			<key>LSTypeIsPackage</key>
+           			<false/>
+           		</dict>
+           	</array>
+           	<key>CFBundleExecutable</key>
+           	<string>studio</string>
+           	<key>CFBundleGetInfoString</key>
+           	<string>Android Studio 2026.2, build AI-262.9437.185.2621.16467767. Copyright JetBrains s.r.o., (c) 2000-2026</string>
+           	<key>CFBundleIconFile</key>
+           	<string>studio.icns</string>
+           	<key>CFBundleIdentifier</key>
+           	<string>com.google.android.studio</string>
+           	<key>CFBundleInfoDictionaryVersion</key>
+           	<string>6.0</string>
+           	<key>CFBundleName</key>
+           	<string>Android Studio</string>
+           	<key>CFBundlePackageType</key>
+           	<string>APPL</string>
+           	<key>CFBundleShortVersionString</key>
+           	<string>2026.2</string>
+           	<key>CFBundleURLTypes</key>
+           	<array>
+           		<dict>
+           			<key>CFBundleTypeRole</key>
+           			<string>Editor</string>
+           			<key>CFBundleURLName</key>
+           			<string>Stacktrace</string>
+           			<key>CFBundleURLSchemes</key>
+           			<array>
+           				<string>idea</string>
+           			</array>
+           		</dict>
+           	</array>
+           	<key>CFBundleVersion</key>
+           	<string>AI-262.9437.185.2621.16467767</string>
+           	<key>LSApplicationCategoryType</key>
+           	<string>public.app-category.developer-tools</string>
+           	<key>LSArchitecturePriority</key>
+           	<array>
+           		<string>arm64</string>
+           	</array>
+           	<key>LSMinimumSystemVersion</key>
+           	<string>10.13</string>
+           	<key>LSRequiresNativeExecution</key>
+           	<string>YES</string>
+           	<key>NSAppleEventsUsageDescription</key>
+           	<string>An application in Android Studio requests the ability to send Apple events.</string>
+           	<key>NSBluetoothAlwaysUsageDescription</key>
+           	<string>An application in Android Studio requests access to Bluetooth.</string>
+           	<key>NSCameraUsageDescription</key>
+           	<string>An application in Android Studio requests access to the device's camera.</string>
+           	<key>NSDesktopFolderUsageDescription</key>
+           	<string>An application in Android Studio requests access to the user's Desktop folder.</string>
+           	<key>NSDocumentsFolderUsageDescription</key>
+           	<string>An application in Android Studio requests access to the user's Documents folder.</string>
+           	<key>NSDownloadsFolderUsageDescription</key>
+           	<string>An application in Android Studio requests access to the user's Downloads folder.</string>
+           	<key>NSHighResolutionCapable</key>
+           	<true/>
+           	<key>NSLocalNetworkUsageDescription</key>
+           	<string>Android Studio's features, such as SSH and database connectivity, require permissions for accessing the local network and sending broadcast requests.</string>
+           	<key>NSLocationUsageDescription</key>
+           	<string>An application in Android Studio requests access to the user's location information.</string>
+           	<key>NSMicrophoneUsageDescription</key>
+           	<string>An application in Android Studio requests access to the device's microphone.</string>
+           	<key>NSNetworkVolumesUsageDescription</key>
+           	<string>An application in Android Studio requests access to files on a network volume.</string>
+           	<key>NSRemovableVolumesUsageDescription</key>
+           	<string>An application in Android Studio requests access to files on a removable volume.</string>
+           	<key>NSSupportsAutomaticGraphicsSwitching</key>
+           	<true/>
+           </dict>
+           </plist>
+[   +3 ms] executing: /Applications/Android Studio.app/Contents/jbr/Contents/Home/bin/java -version
+[  +53 ms] Exit code 0 from: /Applications/Android Studio.app/Contents/jbr/Contents/Home/bin/java -version
+[        ] Picked up JAVA_TOOL_OPTIONS: -Dhttp.proxyHost=127.0.0.1 -Dhttp.proxyPort=18188 -Dhttps.proxyHost=127.0.0.1 -Dhttps.proxyPort=18188 -Dhttp.nonProxyHosts=localhost|127.*|10.0.0.41
+           openjdk version "25.0.3" 2026-04-21
+           OpenJDK Runtime Environment (build 25.0.3+-15898627-b508.16)
+           OpenJDK 64-Bit Server VM (build 25.0.3+-15898627-b508.16, mixed mode)
+[   +6 ms] executing: sysctl hw.optional.arm64
+[   +2 ms] Exit code 0 from: sysctl hw.optional.arm64
+[        ] hw.optional.arm64: 1
+[   +4 ms] Artifact Instance of 'MaterialFonts' is not required, skipping update.
+[        ] Artifact Instance of 'GradleWrapper' is not required, skipping update.
+[        ] Artifact Instance of 'AndroidGenSnapshotArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'AndroidInternalBuildArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterWebSdk' is not required, skipping update.
+[        ] Artifact Instance of 'LegacyCanvasKitRemover' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterSdk' is not required, skipping update.
+[        ] Artifact Instance of 'WindowsEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'LinuxFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'MacOSFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterRunnerSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterRunnerDebugSymbols' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FontSubsetArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'PubDependencies' is not required, skipping update.
+[        ] executing: [~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/flutter/b259cf5419ac79d1da59099b2ebbaa9f8f519877/] git rev-parse --abbrev-ref --symbolic @{upstream}
+[   +6 ms] Exit code 128 from: git rev-parse --abbrev-ref --symbolic @{upstream}
+[        ] fatal: HEAD does not point to a branch
+[        ] executing: [~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/flutter/b259cf5419ac79d1da59099b2ebbaa9f8f519877/] git remote get-url origin
+[   +6 ms] Exit code 0 from: git remote get-url origin
+[        ] https://github.com/mml555/shorebird-flutter.git
+[        ] executing: [~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/flutter/b259cf5419ac79d1da59099b2ebbaa9f8f519877/] git -c log.showSignature=false log HEAD -n 1 --pretty=format:%ad --date=iso
+[   +8 ms] Exit code 0 from: git -c log.showSignature=false log HEAD -n 1 --pretty=format:%ad --date=iso
+[        ] 2026-11-26 19:06:46 -0500
+[   +9 ms] Artifact Instance of 'AndroidGenSnapshotArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'AndroidInternalBuildArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterWebSdk' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterEngineStamp' is not required, skipping update.
+[        ] Artifact Instance of 'LegacyCanvasKitRemover' is not required, skipping update.
+[   +3 ms] executing: sysctl hw.optional.arm64
+[   +2 ms] Exit code 0 from: sysctl hw.optional.arm64
+[        ] hw.optional.arm64: 1
+[        ] Artifact Instance of 'WindowsEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'LinuxFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'MacOSFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterRunnerSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterRunnerDebugSymbols' is not required, skipping update.
+[  +24 ms] Artifact Instance of 'MaterialFonts' is not required, skipping update.
+[        ] Artifact Instance of 'GradleWrapper' is not required, skipping update.
+[        ] Artifact Instance of 'AndroidInternalBuildArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterWebSdk' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterEngineStamp' is not required, skipping update.
+[        ] Artifact Instance of 'LegacyCanvasKitRemover' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterSdk' is not required, skipping update.
+[        ] Artifact Instance of 'WindowsEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'LinuxFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'MacOSFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterRunnerSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterRunnerDebugSymbols' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FontSubsetArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'PubDependencies' is not required, skipping update.
+[   +9 ms] executing: [~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/flutter/b259cf5419ac79d1da59099b2ebbaa9f8f519877/] git -c log.showSignature=false log -n 1 --pretty=format:%H
+[   +8 ms] Exit code 0 from: git -c log.showSignature=false log -n 1 --pretty=format:%H
+[        ] b259cf5419ac79d1da59099b2ebbaa9f8f519877
+[        ] executing: [~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/flutter/b259cf5419ac79d1da59099b2ebbaa9f8f519877/] git tag --points-at b259cf5419ac79d1da59099b2ebbaa9f8f519877
+[   +8 ms] Exit code 0 from: git tag --points-at b259cf5419ac79d1da59099b2ebbaa9f8f519877
+[        ] selfhost-flutter-cell-83198f59
+[        ] executing: [~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/flutter/b259cf5419ac79d1da59099b2ebbaa9f8f519877/] git for-each-ref --contains b259cf5419ac79d1da59099b2ebbaa9f8f519877 --format %(refname:short) refs/remotes/origin/flutter_release/*
+[   +7 ms] Exit code 0 from: git for-each-ref --contains b259cf5419ac79d1da59099b2ebbaa9f8f519877 --format %(refname:short) refs/remotes/origin/flutter_release/*
+[        ] executing: [~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/flutter/b259cf5419ac79d1da59099b2ebbaa9f8f519877/] git for-each-ref --sort=-v:refname --count=1 --format=%(refname:short) refs/tags/[0-9]*.*.*
+[  +17 ms] Exit code 0 from: git for-each-ref --sort=-v:refname --count=1 --format=%(refname:short) refs/tags/[0-9]*.*.*
+[        ] 3.50.0
+[        ] executing: [~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/flutter/b259cf5419ac79d1da59099b2ebbaa9f8f519877/] git merge-base b259cf5419ac79d1da59099b2ebbaa9f8f519877 3.50.0
+[   +8 ms] Exit code 0 from: git merge-base b259cf5419ac79d1da59099b2ebbaa9f8f519877 3.50.0
+[        ] ab2912035e160d9cad6306df307576da6128ebdb
+[        ] executing: [~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/flutter/b259cf5419ac79d1da59099b2ebbaa9f8f519877/] git rev-list --count ab2912035e160d9cad6306df307576da6128ebdb..b259cf5419ac79d1da59099b2ebbaa9f8f519877
+[   +8 ms] Exit code 0 from: git rev-list --count ab2912035e160d9cad6306df307576da6128ebdb..b259cf5419ac79d1da59099b2ebbaa9f8f519877
+[        ] 273
+[   +3 ms] executing: [~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/] ~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/flutter/b259cf5419ac79d1da59099b2ebbaa9f8f519877/bin/cache/dart-sdk/bin/dart pub --suppress-analytics --directory . check-resolution-up-to-date
+[  +58 ms] Resolution is up-to-date
+[        ] Skipping pub get: resolution up-to-date.
+[  +67 ms] Generating ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java
+[   +5 ms] Skipping generating GeneratedPluginRegistrant.java because it is up-to-date.
+[  +12 ms] Top-level Gradle build file not found, skipping migration of task "clean".
+[   +1 ms] executing: /Applications/Android Studio.app/Contents/jbr/Contents/Home/bin/java --version
+[  +54 ms] Exit code 0 from: /Applications/Android Studio.app/Contents/jbr/Contents/Home/bin/java --version
+[        ] openjdk 25.0.3 2026-04-21
+           OpenJDK Runtime Environment (build 25.0.3+-15898627-b508.16)
+           OpenJDK 64-Bit Server VM (build 25.0.3+-15898627-b508.16, mixed mode)
+[        ] Picked up JAVA_TOOL_OPTIONS: -Dhttp.proxyHost=127.0.0.1 -Dhttp.proxyPort=18188 -Dhttps.proxyHost=127.0.0.1 -Dhttps.proxyPort=18188 -Dhttp.nonProxyHosts=localhost|127.*|10.0.0.41
+[        ] Version of Java is different than impacted version, no migration attempted.
+[        ] CMake project not found, skipping support Android 15 16k page size migration.
+[        ] The developer has already configured the Built-In Kotlin flag, skipping migration.
+[        ] The developer has already configured the new DSL flag, skipping migration.
+[   +1 ms] Using gradle from ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/android/gradlew.
+[   +7 ms] LocalFile: '~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/android/build.gradle.kts' doesn't provide an AGP version. Checking settings.
+[        ] LocalFile: '~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/android/settings.gradle.kts' provides AGP version: 9.3.1
+[        ] Running Gradle task 'bundleRelease'...
+[        ] executing: [~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/android/] ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/android/gradlew --full-stacktrace --info -Pverbose=true -Ptarget-platform=android-arm,android-arm64,android-x64 -Ptarget=lib/main.dart -Pbase-application-name=android.app.Application -Pdart-defines=RkxVVFRFUl9CVUlMRF9OQU1FPTEuMC4w,RkxVVFRFUl9CVUlMRF9OVU1CRVI9MQ==,RkxVVFRFUl9WRVJTSU9OPTMuNTAuMS0wLjAucHJlLTI3Mw==,RkxVVFRFUl9DSEFOTkVMPVt1c2VyLWJyYW5jaF0=,RkxVVFRFUl9HSVRfVVJMPWh0dHBzOi8vZ2l0aHViLmNvbS9tbWw1NTUvc2hvcmViaXJkLWZsdXR0ZXIuZ2l0,RkxVVFRF
+[  +27 ms] Picked up JAVA_TOOL_OPTIONS: -Dhttp.proxyHost=127.0.0.1 -Dhttp.proxyPort=18188 -Dhttps.proxyHost=127.0.0.1 -Dhttps.proxyPort=18188 -Dhttp.nonProxyHosts=localhost|127.*|10.0.0.41
+[ +321 ms] Initialized native services in: ~/.gradle/native
+[   +1 ms] Initialized jansi services in: ~/.gradle/native
+[ +214 ms] The client will now receive all logging from the daemon (pid: 61804). The daemon log file: ~/.gradle/daemon/9.5.0/daemon-61804.out.log
+[        ] Starting 3rd build in daemon [uptime: 2 mins 35.942 secs, performance: 100%, GC rate: 0.00/s, heap usage: 0% of 8 GiB, non-heap usage: 9% of 4 GiB]
+[        ] Using 10 worker leases.
+[        ] Operational build model parameters: {cachingModelBuilding=false, configurationCache=false, configurationCacheDisabledReason=null, configurationCacheParallelLoad=false, configurationCacheParallelStore=false, configureOnDemand=false, invalidateCoupledProjects=false, isolatedProjects=false, modelAsProjectDependency=false, modelBuilding=false, parallelModelBuilding=false, parallelProjectConfiguration=false, parallelProjectExecution=false, resilientModelBuilding=false}
+[        ] Now considering [~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/android, ~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/flutter/b259cf5419ac79d1da59099b2ebbaa9f8f519877/packages/flutter_tools/gradle] as hierarchies to watch
+[        ] Watching the file system is configured to be enabled if available
+[        ] File system watching is active
+[        ] Starting Build
+[        ] Now considering [~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/flutter/b259cf5419ac79d1da59099b2ebbaa9f8f519877/packages/flutter_tools/gradle, ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/android] as hierarchies to watch
+[  +99 ms] > Configure project :gradle
+[        ] Evaluating project ':gradle' using build file '~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/flutter/b259cf5419ac79d1da59099b2ebbaa9f8f519877/packages/flutter_tools/gradle/build.gradle.kts'.
+[        ] Resolved plugin [id: 'org.gradle.java-gradle-plugin']
+[        ] Resolved plugin [id: 'org.gradle.groovy']
+[        ] Resolved plugin [id: 'org.gradle.kotlin.kotlin-dsl', version: '6.5.7']
+[        ] Resolved plugin [id: 'org.jetbrains.kotlin.jvm', version: '2.2.20']
+[        ] Using Kotlin Gradle Plugin gradle813 variant
+[        ] kotlin scripting plugin: created the scripting discovery configuration: kotlinScriptDef
+[        ] kotlin scripting plugin: created the scripting discovery configuration: testKotlinScriptDef
+[        ] file or directory '~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/flutter/b259cf5419ac79d1da59099b2ebbaa9f8f519877/packages/flutter_tools/gradle/src/main/java', not found
+[        ] Resolved plugin [id: 'dev.flutter.flutter-plugin-loader', version: '1.0.0']
+[        ] Resolved plugin [id: 'com.android.application', version: '9.3.1', apply: false]
+[        ] Resolved plugin [id: 'org.jetbrains.kotlin.android', version: '2.4.20', apply: false]
+[        ] Resolve mutations for :gradle:checkKotlinGradlePluginConfigurationErrors (Thread[#278,Execution worker,5,main]) started.
+[        ] :gradle:checkKotlinGradlePluginConfigurationErrors (Thread[#278,Execution worker,5,main]) started.
+[        ] > Task :gradle:checkKotlinGradlePluginConfigurationErrors SKIPPED
+[        ] Skipping task ':gradle:checkKotlinGradlePluginConfigurationErrors' as task onlyIf 'errorDiagnostics are present' is false.
+[        ] Resolve mutations for :gradle:compileKotlin (Thread[#278,Execution worker,5,main]) started.
+[        ] :gradle:compileKotlin (Thread[#278,Execution worker,5,main]) started.
+[        ] > Task :gradle:compileKotlin UP-TO-DATE
+[        ] Caching disabled for task ':gradle:compileKotlin' because:
+[        ]   Build cache is disabled
+[        ] Skipping task ':gradle:compileKotlin' as it is up-to-date.
+[        ] Resolve mutations for :gradle:compileJava (Thread[#278,Execution worker,5,main]) started.
+[        ] :gradle:compileJava (Thread[#278,Execution worker,5,main]) started.
+[        ] > Task :gradle:compileJava NO-SOURCE
+[        ] Skipping task ':gradle:compileJava' as it has no source files and no previous output files.
+[        ] Resolve mutations for :gradle:compileGroovy (Thread[#278,Execution worker,5,main]) started.
+[        ] :gradle:compileGroovy (Thread[#278,Execution worker,5,main]) started.
+[        ] > Task :gradle:compileGroovy NO-SOURCE
+[        ] Skipping task ':gradle:compileGroovy' as it has no source files and no previous output files.
+[        ] Resolve mutations for :gradle:pluginDescriptors (Thread[#278,Execution worker,5,main]) started.
+[        ] :gradle:pluginDescriptors (Thread[#278,Execution worker,5,main]) started.
+[        ] > Task :gradle:pluginDescriptors UP-TO-DATE
+[        ] Caching disabled for task ':gradle:pluginDescriptors' because:
+[        ]   Build cache is disabled
+[        ]   Not worth caching
+[        ] Skipping task ':gradle:pluginDescriptors' as it is up-to-date.
+[        ] Resolve mutations for :gradle:processResources (Thread[#278,Execution worker,5,main]) started.
+[        ] :gradle:processResources (Thread[#278,Execution worker,5,main]) started.
+[        ] > Task :gradle:processResources UP-TO-DATE
+[        ] Caching disabled for task ':gradle:processResources' because:
+[        ]   Build cache is disabled
+[        ]   Not worth caching
+[        ] Skipping task ':gradle:processResources' as it is up-to-date.
+[        ] Resolve mutations for :gradle:classes (Thread[#278,Execution worker,5,main]) started.
+[        ] :gradle:classes (Thread[#278,Execution worker,5,main]) started.
+[        ] > Task :gradle:classes UP-TO-DATE
+[        ] Skipping task ':gradle:classes' as it has no actions.
+[        ] Resolve mutations for :gradle:jar (Thread[#278,Execution worker,5,main]) started.
+[        ] :gradle:jar (Thread[#278,Execution worker,5,main]) started.
+[        ] > Task :gradle:jar UP-TO-DATE
+[        ] Caching disabled for task ':gradle:jar' because:
+[        ]   Build cache is disabled
+[        ]   Not worth caching
+[        ] Skipping task ':gradle:jar' as it is up-to-date.
+[  +98 ms] Settings evaluated using settings file '~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/android/settings.gradle.kts'.
+[        ] Projects loaded. Root project using build file '~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/android/build.gradle.kts'.
+[        ] Included projects: [root project 'android', project ':app']
+[        ] > Configure project :app
+[        ] Evaluating project ':app' using build file '~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/android/app/build.gradle.kts'.
+[        ] Resolved plugin [id: 'com.android.application']
+[        ] Resolved plugin [id: 'dev.flutter.flutter-gradle-plugin']
+[        ] WARNING: The option setting 'android.builtInKotlin=false' is deprecated.
+[        ] The current default is 'true'.
+[        ] It will be removed in version 10.0 of the Android Gradle plugin.
+[        ] Add android.sync.suppressAgpWarnings=UNSUPPORTED_PROJECT_OPTION_USE to the gradle.properties file to suppress this warning.
+[        ] WARNING: The option setting 'android.newDsl=false' is deprecated.
+[        ] The current default is 'true'.
+[        ] It will be removed in version 10.0 of the Android Gradle plugin.
+[        ] Add android.sync.suppressAgpWarnings=UNSUPPORTED_PROJECT_OPTION_USE to the gradle.properties file to suppress this warning.
+[        ] Using default execution profile
+[        ] Using Kotlin Gradle Plugin gradle813 variant
+[        ] WARNING: API 'applicationVariants' is obsolete and has been replaced with 'AndroidComponentsExtension'.
+[        ] It will be removed in version 10.0 of the Android Gradle plugin.
+[        ] The legacy variant API is disabled by default in AGP 9.0, but can be re-enabled by adding 
+[        ]     android.newDsl=false
+[        ] to this project's gradle.properties file.
+[        ] For more information, see http://developer.android.com/build/r/new-dsl.
+[        ] To determine what is calling applicationVariants, use -Pandroid.debug.obsoleteApi=true on the command line to display more information.
+[        ] Add android.sync.suppressAgpWarnings=DEPRECATED_DSL to the gradle.properties file to suppress this warning.
+[        ] WARNING: API 'testVariants' is obsolete and has been replaced with 'AndroidComponentsExtension'.
+[        ] It will be removed in version 10.0 of the Android Gradle plugin.
+[        ] The legacy variant API is disabled by default in AGP 9.0, but can be re-enabled by adding 
+[        ]     android.newDsl=false
+[        ] to this project's gradle.properties file.
+[        ] For more information, see http://developer.android.com/build/r/new-dsl.
+[        ] To determine what is calling testVariants, use -Pandroid.debug.obsoleteApi=true on the command line to display more information.
+[        ] Add android.sync.suppressAgpWarnings=DEPRECATED_DSL to the gradle.properties file to suppress this warning.
+[        ] WARNING: API 'unitTestVariants' is obsolete and has been replaced with 'AndroidComponentsExtension'.
+[        ] It will be removed in version 10.0 of the Android Gradle plugin.
+[        ] The legacy variant API is disabled by default in AGP 9.0, but can be re-enabled by adding 
+[        ]     android.newDsl=false
+[        ] to this project's gradle.properties file.
+[        ] For more information, see http://developer.android.com/build/r/new-dsl.
+[        ] To determine what is calling unitTestVariants, use -Pandroid.debug.obsoleteApi=true on the command line to display more information.
+[        ] Add android.sync.suppressAgpWarnings=DEPRECATED_DSL to the gradle.properties file to suppress this warning.
+[        ] w: [33m[1m⚠️ Deprecated 'org.jetbrains.kotlin.android' plugin usage[0m[0m
+[        ] The 'org.jetbrains.kotlin.android' plugin in project ':app' is no longer required for Kotlin support since AGP 9.0.
+[        ] [32m[1mSolution:[0m[0m
+[        ] [32m[3mRemove both `android.builtInKotlin=true` and `android.newDsl=false` from `gradle.properties`, then migrate to built-in Kotlin.[0m[0m
+[        ] [36mSee [0m[34mhttps://kotl.in/gradle/agp-built-in-kotlin[0m[36m for more details.[0m
+[        ] > Configure project :
+[        ] Evaluating root project 'android' using build file '~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/android/build.gradle.kts'.
+[        ] All projects evaluated.
+[        ] Task name matched 'bundleRelease'
+[        ] Selected primary task 'bundleRelease' from project :
+[ +103 ms] Tasks to be executed: [task ':app:validateCompileSdkVersion', task ':app:preBuild', task ':app:preReleaseBuild', task ':app:extractReleaseVersionControlInfo', task ':app:compileFlutterBuildRelease', task ':app:copyFlutterAssetsRelease', task ':app:generateReleaseAssets', task ':app:mergeReleaseAssets', task ':app:buildKotlinToolingMetadata', task ':app:checkReleaseDuplicateClasses', task ':app:checkKotlinGradlePluginConfigurationErrors', task ':app:generateReleaseResources', task ':app:packageReleaseResources', task ':app:processReleaseNavigationResources', task ':app:parseReleaseLo
+[        ] Tasks that were excluded: []
+[        ] Resolve mutations for :app:validateCompileSdkVersion (Thread[#278,Execution worker,5,main]) started.
+[        ] :app:validateCompileSdkVersion (Thread[#278,Execution worker,5,main]) started.
+[        ] > Task :app:validateCompileSdkVersion
+[        ] Caching disabled for task ':app:validateCompileSdkVersion' because:
+[        ]   Build cache is disabled
+[        ] Task ':app:validateCompileSdkVersion' is not up-to-date because:
+[        ]   Task has not declared any outputs despite executing actions.
+[        ] Resolve mutations for :app:preBuild (Thread[#278,Execution worker,5,main]) started.
+[        ] :app:preBuild (Thread[#278,Execution worker,5,main]) started.
+[        ] > Task :app:preBuild
+[        ] Skipping task ':app:preBuild' as it has no actions.
+[        ] Resolve mutations for :app:preReleaseBuild (Thread[#278,Execution worker,5,main]) started.
+[        ] :app:preReleaseBuild (Thread[#278,Execution worker,5,main]) started.
+[        ] > Task :app:preReleaseBuild
+[        ] Skipping task ':app:preReleaseBuild' as it has no actions.
+[        ] Resolve mutations for :app:extractReleaseVersionControlInfo (Thread[#278,Execution worker,5,main]) started.
+[        ] :app:extractReleaseVersionControlInfo (Thread[#278,Execution worker,5,main]) started.
+[        ] > Task :app:extractReleaseVersionControlInfo UP-TO-DATE
+[        ] Caching disabled for task ':app:extractReleaseVersionControlInfo' because:
+[        ]   Build cache is disabled
+[        ]   Caching has been disabled for the task
+[        ] Skipping task ':app:extractReleaseVersionControlInfo' as it is up-to-date.
+[        ] Resolve mutations for :app:compileFlutterBuildRelease (Thread[#278,Execution worker,5,main]) started.
+[        ] :app:compileFlutterBuildRelease (Thread[#278,Execution worker,5,main]) started.
+[+1994 ms] > Task :app:compileFlutterBuildRelease
+[        ] Caching disabled for task ':app:compileFlutterBuildRelease' because:
+[        ]   Build cache is disabled
+[        ]   Caching has not been enabled for the task
+[        ] Task ':app:compileFlutterBuildRelease' is not up-to-date because:
+[        ]   Value of input property 'shorebirdTraceFile' has changed for task ':app:compileFlutterBuildRelease'
+[        ] Starting process 'command '~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/flutter/b259cf5419ac79d1da59099b2ebbaa9f8f519877/bin/flutter''. Working directory: ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab Command: ~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/flutter/b259cf5419ac79d1da59099b2ebbaa9f8f519877/bin/flutter --verbose assemble --no-version-check --depfile ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/app/intermediates/flutter/release/flutter_build.d --output ~/Developer/shorebird-wt/devrun/android-83198f59/work/unta
+[        ] Successfully started process 'command '~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/flutter/b259cf5419ac79d1da59099b2ebbaa9f8f519877/bin/flutter''
+[        ] [   +1 ms] executing: [~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/flutter/b259cf5419ac79d1da59099b2ebbaa9f8f519877/] git -c log.showSignature=false log -n 1 --pretty=format:%H
+[        ] [   +8 ms] Exit code 0 from: git -c log.showSignature=false log -n 1 --pretty=format:%H
+[        ] [        ] b259cf5419ac79d1da59099b2ebbaa9f8f519877
+[        ] [        ] executing: [~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/flutter/b259cf5419ac79d1da59099b2ebbaa9f8f519877/] git tag --points-at b259cf5419ac79d1da59099b2ebbaa9f8f519877
+[        ] [   +9 ms] Exit code 0 from: git tag --points-at b259cf5419ac79d1da59099b2ebbaa9f8f519877
+[        ] [        ] selfhost-flutter-cell-83198f59
+[        ] [        ] executing: [~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/flutter/b259cf5419ac79d1da59099b2ebbaa9f8f519877/] git for-each-ref --contains b259cf5419ac79d1da59099b2ebbaa9f8f519877 --format %(refname:short) refs/remotes/origin/flutter_release/*
+[        ] [   +7 ms] Exit code 0 from: git for-each-ref --contains b259cf5419ac79d1da59099b2ebbaa9f8f519877 --format %(refname:short) refs/remotes/origin/flutter_release/*
+[        ] [        ] executing: [~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/flutter/b259cf5419ac79d1da59099b2ebbaa9f8f519877/] git for-each-ref --sort=-v:refname --count=1 --format=%(refname:short) refs/tags/[0-9]*.*.*
+[        ] [  +15 ms] Exit code 0 from: git for-each-ref --sort=-v:refname --count=1 --format=%(refname:short) refs/tags/[0-9]*.*.*
+[        ] [        ] 3.50.0
+[        ] [        ] executing: [~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/flutter/b259cf5419ac79d1da59099b2ebbaa9f8f519877/] git merge-base b259cf5419ac79d1da59099b2ebbaa9f8f519877 3.50.0
+[        ] [   +7 ms] Exit code 0 from: git merge-base b259cf5419ac79d1da59099b2ebbaa9f8f519877 3.50.0
+[        ] [        ] ab2912035e160d9cad6306df307576da6128ebdb
+[        ] [        ] executing: [~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/flutter/b259cf5419ac79d1da59099b2ebbaa9f8f519877/] git rev-list --count ab2912035e160d9cad6306df307576da6128ebdb..b259cf5419ac79d1da59099b2ebbaa9f8f519877
+[        ] [   +7 ms] Exit code 0 from: git rev-list --count ab2912035e160d9cad6306df307576da6128ebdb..b259cf5419ac79d1da59099b2ebbaa9f8f519877
+[        ] [        ] 273
+[        ] [  +17 ms] executing: [~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/flutter/b259cf5419ac79d1da59099b2ebbaa9f8f519877/] git symbolic-ref --short HEAD
+[        ] [        ] executing: [~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/flutter/b259cf5419ac79d1da59099b2ebbaa9f8f519877/] git symbolic-ref --short HEAD
+[        ] [   +6 ms] Exit code 128 from: git symbolic-ref --short HEAD
+[        ] [        ] fatal: ref HEAD is not a symbolic ref
+[        ] [   +6 ms] Exit code 128 from: git symbolic-ref --short HEAD
+[        ] [        ] fatal: ref HEAD is not a symbolic ref
+[        ] [ +232 ms] executing: /usr/bin/plutil -convert xml1 -o - /Applications/Android Studio.app/Contents/Info.plist
+[        ] [   +5 ms] Exit code 0 from: /usr/bin/plutil -convert xml1 -o - /Applications/Android Studio.app/Contents/Info.plist
+[        ] [        ] <?xml version="1.0" encoding="UTF-8"?>
+[        ]            <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+[        ]            <plist version="1.0">
+[        ]            <dict>
+[        ]            	<key>CFBundleDevelopmentRegion</key>
+[        ]            	<string>English</string>
+[        ]            	<key>CFBundleDocumentTypes</key>
+[        ]            	<array>
+[        ]            		<dict>
+[        ]            			<key>CFBundleTypeExtensions</key>
+[        ]            			<array>
+[        ]            				<string>ipr</string>
+[        ]            			</array>
+[        ]            			<key>CFBundleTypeIconFile</key>
+[        ]            			<string>studio.icns</string>
+[        ]            			<key>CFBundleTypeName</key>
+[        ]            			<string>Android Studio Project File</string>
+[        ]            			<key>CFBundleTypeRole</key>
+[        ]            			<string>Editor</string>
+[        ]            		</dict>
+[        ]            		<dict>
+[        ]            			<key>CFBundleTypeExtensions</key>
+[        ]            			<array>
+[        ]            				<string>*</string>
+[        ]            			</array>
+[        ]            			<key>CFBundleTypeName</key>
+[        ]            			<string>All documents</string>
+[        ]            			<key>CFBundleTypeOSTypes</key>
+[        ]            			<array>
+[        ]            				<string>****</string>
+[        ]            			</array>
+[        ]            			<key>CFBundleTypeRole</key>
+[        ]            			<string>Editor</string>
+[        ]            			<key>LSTypeIsPackage</key>
+[        ]            			<false/>
+[        ]            		</dict>
+[        ]            	</array>
+[        ]            	<key>CFBundleExecutable</key>
+[        ]            	<string>studio</string>
+[        ]            	<key>CFBundleGetInfoString</key>
+[        ]            	<string>Android Studio 2026.2, build AI-262.9437.185.2621.16467767. Copyright JetBrains s.r.o., (c) 2000-2026</string>
+[        ]            	<key>CFBundleIconFile</key>
+[        ]            	<string>studio.icns</string>
+[        ]            	<key>CFBundleIdentifier</key>
+[        ]            	<string>com.google.android.studio</string>
+[        ]            	<key>CFBundleInfoDictionaryVersion</key>
+[        ]            	<string>6.0</string>
+[        ]            	<key>CFBundleName</key>
+[        ]            	<string>Android Studio</string>
+[        ]            	<key>CFBundlePackageType</key>
+[        ]            	<string>APPL</string>
+[        ]            	<key>CFBundleShortVersionString</key>
+[        ]            	<string>2026.2</string>
+[        ]            	<key>CFBundleURLTypes</key>
+[        ]            	<array>
+[        ]            		<dict>
+[        ]            			<key>CFBundleTypeRole</key>
+[        ]            			<string>Editor</string>
+[        ]            			<key>CFBundleURLName</key>
+[        ]            			<string>Stacktrace</string>
+[        ]            			<key>CFBundleURLSchemes</key>
+[        ]            			<array>
+[        ]            				<string>idea</string>
+[        ]            			</array>
+[        ]            		</dict>
+[        ]            	</array>
+[        ]            	<key>CFBundleVersion</key>
+[        ]            	<string>AI-262.9437.185.2621.16467767</string>
+[        ]            	<key>LSApplicationCategoryType</key>
+[        ]            	<string>public.app-category.developer-tools</string>
+[        ]            	<key>LSArchitecturePriority</key>
+[        ]            	<array>
+[        ]            		<string>arm64</string>
+[        ]            	</array>
+[        ]            	<key>LSMinimumSystemVersion</key>
+[        ]            	<string>10.13</string>
+[        ]            	<key>LSRequiresNativeExecution</key>
+[        ]            	<string>YES</string>
+[        ]            	<key>NSAppleEventsUsageDescription</key>
+[        ]            	<string>An application in Android Studio requests the ability to send Apple events.</string>
+[        ]            	<key>NSBluetoothAlwaysUsageDescription</key>
+[        ]            	<string>An application in Android Studio requests access to Bluetooth.</string>
+[        ]            	<key>NSCameraUsageDescription</key>
+[        ]            	<string>An application in Android Studio requests access to the device's camera.</string>
+[        ]            	<key>NSDesktopFolderUsageDescription</key>
+[        ]            	<string>An application in Android Studio requests access to the user's Desktop folder.</string>
+[        ]            	<key>NSDocumentsFolderUsageDescription</key>
+[        ]            	<string>An application in Android Studio requests access to the user's Documents folder.</string>
+[        ]            	<key>NSDownloadsFolderUsageDescription</key>
+[        ]            	<string>An application in Android Studio requests access to the user's Downloads folder.</string>
+[        ]            	<key>NSHighResolutionCapable</key>
+[        ]            	<true/>
+[        ]            	<key>NSLocalNetworkUsageDescription</key>
+[        ]            	<string>Android Studio's features, such as SSH and database connectivity, require permissions for accessing the local network and sending broadcast requests.</string>
+[        ]            	<key>NSLocationUsageDescription</key>
+[        ]            	<string>An application in Android Studio requests access to the user's location information.</string>
+[        ]            	<key>NSMicrophoneUsageDescription</key>
+[        ]            	<string>An application in Android Studio requests access to the device's microphone.</string>
+[        ]            	<key>NSNetworkVolumesUsageDescription</key>
+[        ]            	<string>An application in Android Studio requests access to files on a network volume.</string>
+[        ]            	<key>NSRemovableVolumesUsageDescription</key>
+[        ]            	<string>An application in Android Studio requests access to files on a removable volume.</string>
+[        ]            	<key>NSSupportsAutomaticGraphicsSwitching</key>
+[        ]            	<true/>
+[        ]            </dict>
+[        ]            </plist>
+[        ] [   +3 ms] executing: /Applications/Android Studio.app/Contents/jbr/Contents/Home/bin/java -version
+[        ] [  +60 ms] Exit code 0 from: /Applications/Android Studio.app/Contents/jbr/Contents/Home/bin/java -version
+[        ] [        ] Picked up JAVA_TOOL_OPTIONS: -Dhttp.proxyHost=127.0.0.1 -Dhttp.proxyPort=18188 -Dhttps.proxyHost=127.0.0.1 -Dhttps.proxyPort=18188 -Dhttp.nonProxyHosts=localhost|127.*|10.0.0.41
+[        ]            openjdk version "25.0.3" 2026-04-21
+[        ]            OpenJDK Runtime Environment (build 25.0.3+-15898627-b508.16)
+[        ]            OpenJDK 64-Bit Server VM (build 25.0.3+-15898627-b508.16, mixed mode)
+[        ] [   +6 ms] executing: sysctl hw.optional.arm64
+[        ] [   +2 ms] Exit code 0 from: sysctl hw.optional.arm64
+[        ] [        ] hw.optional.arm64: 1
+[        ] [   +4 ms] Artifact Instance of 'MaterialFonts' is not required, skipping update.
+[        ] [        ] Artifact Instance of 'GradleWrapper' is not required, skipping update.
+[        ] [        ] Artifact Instance of 'AndroidGenSnapshotArtifacts' is not required, skipping update.
+[        ] [        ] Artifact Instance of 'AndroidInternalBuildArtifacts' is not required, skipping update.
+[        ] [        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+[        ] [        ] Artifact Instance of 'FlutterWebSdk' is not required, skipping update.
+[        ] [        ] Artifact Instance of 'LegacyCanvasKitRemover' is not required, skipping update.
+[        ] [        ] Artifact Instance of 'FlutterSdk' is not required, skipping update.
+[        ] [        ] Artifact Instance of 'WindowsEngineArtifacts' is not required, skipping update.
+[        ] [        ] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+[        ] [        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+[        ] [        ] Artifact Instance of 'LinuxFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] [        ] Artifact Instance of 'MacOSFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] [        ] Artifact Instance of 'FlutterRunnerSDKArtifacts' is not required, skipping update.
+[        ] [        ] Artifact Instance of 'FlutterRunnerDebugSymbols' is not required, skipping update.
+[        ] [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] [        ] Artifact Instance of 'FontSubsetArtifacts' is not required, skipping update.
+[        ] [        ] Artifact Instance of 'PubDependencies' is not required, skipping update.
+[        ] [        ] executing: [~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/flutter/b259cf5419ac79d1da59099b2ebbaa9f8f519877/] git rev-parse --abbrev-ref --symbolic @{upstream}
+[        ] [   +7 ms] Exit code 128 from: git rev-parse --abbrev-ref --symbolic @{upstream}
+[        ] [        ] fatal: HEAD does not point to a branch
+[        ] [        ] executing: [~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/flutter/b259cf5419ac79d1da59099b2ebbaa9f8f519877/] git remote get-url origin
+[        ] [   +6 ms] Exit code 0 from: git remote get-url origin
+[        ] [        ] https://github.com/mml555/shorebird-flutter.git
+[        ] [        ] executing: [~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/flutter/b259cf5419ac79d1da59099b2ebbaa9f8f519877/] git -c log.showSignature=false log HEAD -n 1 --pretty=format:%ad --date=iso
+[        ] [   +8 ms] Exit code 0 from: git -c log.showSignature=false log HEAD -n 1 --pretty=format:%ad --date=iso
+[        ] [        ] 2026-11-26 19:06:46 -0500
+[        ] [   +5 ms] Artifact Instance of 'AndroidGenSnapshotArtifacts' is not required, skipping update.
+[        ] [        ] Artifact Instance of 'AndroidInternalBuildArtifacts' is not required, skipping update.
+[        ] [        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+[        ] [        ] Artifact Instance of 'FlutterWebSdk' is not required, skipping update.
+[        ] [        ] Artifact Instance of 'FlutterEngineStamp' is not required, skipping update.
+[        ] [        ] Artifact Instance of 'LegacyCanvasKitRemover' is not required, skipping update.
+[        ] [   +6 ms] executing: sysctl hw.optional.arm64
+[        ] [   +2 ms] Exit code 0 from: sysctl hw.optional.arm64
+[        ] [        ] hw.optional.arm64: 1
+[        ] [        ] Artifact Instance of 'WindowsEngineArtifacts' is not required, skipping update.
+[        ] [        ] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+[        ] [        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+[        ] [        ] Artifact Instance of 'LinuxFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] [        ] Artifact Instance of 'MacOSFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] [        ] Artifact Instance of 'FlutterRunnerSDKArtifacts' is not required, skipping update.
+[        ] [        ] Artifact Instance of 'FlutterRunnerDebugSymbols' is not required, skipping update.
+[        ] [  +34 ms] Artifact Instance of 'MaterialFonts' is not required, skipping update.
+[        ] [        ] Artifact Instance of 'GradleWrapper' is not required, skipping update.
+[        ] [        ] Artifact Instance of 'AndroidInternalBuildArtifacts' is not required, skipping update.
+[        ] [        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+[        ] [        ] Artifact Instance of 'FlutterWebSdk' is not required, skipping update.
+[        ] [        ] Artifact Instance of 'FlutterEngineStamp' is not required, skipping update.
+[        ] [        ] Artifact Instance of 'LegacyCanvasKitRemover' is not required, skipping update.
+[        ] [        ] Artifact Instance of 'FlutterSdk' is not required, skipping update.
+[        ] [        ] Artifact Instance of 'WindowsEngineArtifacts' is not required, skipping update.
+[        ] [        ] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+[        ] [        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+[        ] [        ] Artifact Instance of 'LinuxFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] [        ] Artifact Instance of 'MacOSFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] [        ] Artifact Instance of 'FlutterRunnerSDKArtifacts' is not required, skipping update.
+[        ] [        ] Artifact Instance of 'FlutterRunnerDebugSymbols' is not required, skipping update.
+[        ] [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] [        ] Artifact Instance of 'FontSubsetArtifacts' is not required, skipping update.
+[        ] [        ] Artifact Instance of 'PubDependencies' is not required, skipping update.
+[        ] [   +5 ms] Initializing file store
+[        ] [   +4 ms] Done initializing file store
+[        ] [ +246 ms] Skipping target: gen_dart_plugin_registrant
+[        ] [   +1 ms] Skipping target: build_hooks
+[        ] [        ] Skipping target: gen_localizations
+[        ] [ +402 ms] kernel_snapshot_program: Starting due to {InvalidatedReasonKind.inputChanged: The following inputs have updated contents: ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/lib/main.dart}
+[        ] [   +6 ms] ~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/flutter/b259cf5419ac79d1da59099b2ebbaa9f8f519877/bin/cache/dart-sdk/bin/dartaotruntime ~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/flutter/b259cf5419ac79d1da59099b2ebbaa9f8f519877/bin/cache/dart-sdk/bin/snapshots/frontend_server_aot.dart.snapshot --sdk-root ~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/flutter/b259cf5419ac79d1da59099b2ebbaa9f8f519877/bin/cache/artifacts/engine/common/flutter_patched_sdk_product/ --target=flutter --no-print-incremental-dependencies -DFLUTTER_BUILD_NAME=1
+[+4585 ms] [+5359 ms] kernel_snapshot_program: Complete
+[ +306 ms] [ +297 ms] Skipping target: link_hooks
+[ +100 ms] [  +46 ms] android_aot_release_android-arm: Starting due to {InvalidatedReasonKind.inputChanged: The following inputs have updated contents: ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/.dart_tool/flutter_build/4223c928c11cd14da049cba88f69f2cd/app.dill}
+[        ] [   +1 ms] targetingApplePlatform = false
+[        ] [        ] extractAppleDebugSymbols = true
+[        ] [        ] targetingAndroidPlatform = true
+[        ] [        ] executing: ~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/flutter/b259cf5419ac79d1da59099b2ebbaa9f8f519877/bin/cache/artifacts/engine/android-arm-release/darwin-x64/gen_snapshot --deterministic --snapshot_kind=app-aot-elf --elf=~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/.dart_tool/flutter_build/4223c928c11cd14da049cba88f69f2cd/armeabi-v7a/app.so --no-use-integer-division ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/.dart_tool/flutter_build/4223c928c11cd14da049cba88f69f2cd/app.dill
+[        ] [        ] Skipping target: install_code_assets
+[        ] [        ] android_aot_release_android-arm64: Starting due to {InvalidatedReasonKind.inputChanged: The following inputs have updated contents: ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/.dart_tool/flutter_build/4223c928c11cd14da049cba88f69f2cd/app.dill}
+[        ] [        ] targetingApplePlatform = false
+[        ] [        ] extractAppleDebugSymbols = true
+[        ] [        ] targetingAndroidPlatform = true
+[        ] [        ] executing: ~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/flutter/b259cf5419ac79d1da59099b2ebbaa9f8f519877/bin/cache/artifacts/engine/android-arm64-release/darwin-x64/gen_snapshot --deterministic --snapshot_kind=app-aot-elf --elf=~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/.dart_tool/flutter_build/4223c928c11cd14da049cba88f69f2cd/arm64-v8a/app.so ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/.dart_tool/flutter_build/4223c928c11cd14da049cba88f69f2cd/app.dill
+[        ] [        ] android_aot_release_android-x64: Starting due to {InvalidatedReasonKind.inputChanged: The following inputs have updated contents: ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/.dart_tool/flutter_build/4223c928c11cd14da049cba88f69f2cd/app.dill}
+[        ] [        ] targetingApplePlatform = false
+[        ] [        ] extractAppleDebugSymbols = true
+[        ] [        ] targetingAndroidPlatform = true
+[        ] [        ] executing: ~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/flutter/b259cf5419ac79d1da59099b2ebbaa9f8f519877/bin/cache/artifacts/engine/android-x64-release/darwin-x64/gen_snapshot --deterministic --snapshot_kind=app-aot-elf --elf=~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/.dart_tool/flutter_build/4223c928c11cd14da049cba88f69f2cd/x86_64/app.so ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/.dart_tool/flutter_build/4223c928c11cd14da049cba88f69f2cd/app.dill
+[        ] [  +28 ms] aot_android_asset_bundle: Starting due to {InvalidatedReasonKind.inputChanged: The following inputs have updated contents: ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/.dart_tool/flutter_build/4223c928c11cd14da049cba88f69f2cd/app.dill}
+[  +94 ms] [  +58 ms] impellerc command: [~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/flutter/b259cf5419ac79d1da59099b2ebbaa9f8f519877/bin/cache/artifacts/engine/darwin-x64/impellerc, --sksl, --runtime-stage-gles, --runtime-stage-gles3, --runtime-stage-vulkan, --iplr, --sl=~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/app/intermediates/flutter/release/flutter_assets/packages/material_ui/shaders/ink_sparkle.frag, --spirv=~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/app/intermediates/flutter/release/flutter_assets/packages/material_ui/shade
+[        ] [   +2 ms] impellerc command: [~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/flutter/b259cf5419ac79d1da59099b2ebbaa9f8f519877/bin/cache/artifacts/engine/darwin-x64/impellerc, --sksl, --runtime-stage-gles, --runtime-stage-gles3, --runtime-stage-vulkan, --iplr, --sl=~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/app/intermediates/flutter/release/flutter_assets/shaders/ink_sparkle.frag, --spirv=~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/app/intermediates/flutter/release/flutter_assets/shaders/ink_sparkle.frag.spirv, --input=~/Devel
+[        ] [        ] impellerc command: [~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/flutter/b259cf5419ac79d1da59099b2ebbaa9f8f519877/bin/cache/artifacts/engine/darwin-x64/impellerc, --sksl, --runtime-stage-gles, --runtime-stage-gles3, --runtime-stage-vulkan, --iplr, --sl=~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/app/intermediates/flutter/release/flutter_assets/shaders/stretch_effect.frag, --spirv=~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/app/intermediates/flutter/release/flutter_assets/shaders/stretch_effect.frag.spirv, --input=~
+[        ] [  +42 ms] Expected to find fontFamily for constant IconData with codepoint: 128842, but found fontFamily: null. This usually means you are relying on the system font. Alternatively, font families in an IconData class can be provided in the assets section of your pubspec.yaml, or you are missing "uses-material-design: true".
+[        ] [        ] Running font-subset: ~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/flutter/b259cf5419ac79d1da59099b2ebbaa9f8f519877/bin/cache/artifacts/engine/darwin-x64/font-subset ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/app/intermediates/flutter/release/flutter_assets/fonts/MaterialIcons-Regular.otf ~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/flutter/b259cf5419ac79d1da59099b2ebbaa9f8f519877/bin/cache/artifacts/material_fonts/MaterialIcons-Regular.otf, using codepoints 57501 57502 57706
+[        ] [        ] Running font-subset: ~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/flutter/b259cf5419ac79d1da59099b2ebbaa9f8f519877/bin/cache/artifacts/engine/darwin-x64/font-subset ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/app/intermediates/flutter/release/flutter_assets/packages/cupertino_icons/assets/CupertinoIcons.ttf ~/.pub-cache/hosted/pub.dev/cupertino_icons-1.0.9/assets/CupertinoIcons.ttf, using codepoints 62418
+[        ] [  +14 ms] Font asset "CupertinoIcons.ttf" was tree-shaken, reducing it from 257628 to 844 bytes (99.7% reduction). Tree-shaking can be disabled by providing the --no-tree-shake-icons flag when building your app.
+[        ] [        ] Font asset "MaterialIcons-Regular.otf" was tree-shaken, reducing it from 1645184 to 1096 bytes (99.9% reduction). Tree-shaking can be disabled by providing the --no-tree-shake-icons flag when building your app.
+[ +396 ms] [ +400 ms] aot_android_asset_bundle: Complete
+[+2704 ms] [+2625 ms] android_aot_release_android-arm64: Complete
+[        ] [  +60 ms] android_aot_bundle_release_android-arm64: Starting due to {InvalidatedReasonKind.inputChanged: The following inputs have updated contents: ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/.dart_tool/flutter_build/4223c928c11cd14da049cba88f69f2cd/arm64-v8a/app.so}
+[        ] [   +5 ms] android_aot_bundle_release_android-arm64: Complete
+[        ] [  +30 ms] android_aot_release_android-x64: Complete
+[  +95 ms] [  +62 ms] android_aot_bundle_release_android-x64: Starting due to {InvalidatedReasonKind.inputChanged: The following inputs have updated contents: ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/.dart_tool/flutter_build/4223c928c11cd14da049cba88f69f2cd/x86_64/app.so}
+[        ] [  +15 ms] android_aot_bundle_release_android-x64: Complete
+[  +99 ms] [  +47 ms] android_aot_release_android-arm: Complete
+[        ] [  +56 ms] android_aot_bundle_release_android-arm: Starting due to {InvalidatedReasonKind.inputChanged: The following inputs have updated contents: ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/.dart_tool/flutter_build/4223c928c11cd14da049cba88f69f2cd/armeabi-v7a/app.so}
+[ +107 ms] [  +23 ms] android_aot_bundle_release_android-arm: Complete
+[        ] [  +28 ms] Skipping target: _composite
+[        ] [        ] Persisting file store
+[        ] [   +3 ms] Done persisting file store
+[        ] [  +10 ms] build succeeded.
+[        ] [   +6 ms] "flutter assemble" took 9,948ms.
+[        ] [        ] Running 2 shutdown hooks
+[        ] [        ] Shutdown hooks complete
+[        ] [        ] exiting with code 0
+[        ] Resolve mutations for :app:copyFlutterAssetsRelease (Thread[#278,Execution worker,5,main]) started.
+[        ] :app:copyFlutterAssetsRelease (Thread[#278,Execution worker,5,main]) started.
+[        ] > Task :app:copyFlutterAssetsRelease
+[        ] Caching disabled for task ':app:copyFlutterAssetsRelease' because:
+[        ]   Build cache is disabled
+[        ]   Syncing local asset directories is faster than unpacking cache archives
+[        ] Task ':app:copyFlutterAssetsRelease' is not up-to-date because:
+[        ]   Input property 'intermediateDir' file ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/app/intermediates/flutter/release/arm64-v8a/app.so has changed.
+[        ]   Input property 'intermediateDir' file ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/app/intermediates/flutter/release/armeabi-v7a/app.so has changed.
+[        ]   Input property 'intermediateDir' file ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/app/intermediates/flutter/release/x86_64/app.so has changed.
+[        ] Resolve mutations for :app:generateReleaseAssets (Thread[#278,Execution worker,5,main]) started.
+[        ] :app:generateReleaseAssets (Thread[#278,Execution worker,5,main]) started.
+[        ] > Task :app:generateReleaseAssets UP-TO-DATE
+[        ] Skipping task ':app:generateReleaseAssets' as it has no actions.
+[        ] Resolve mutations for :app:mergeReleaseAssets (Thread[#278,Execution worker,5,main]) started.
+[        ] :app:mergeReleaseAssets (Thread[#278,Execution worker,5,main]) started.
+[ +196 ms] > Task :app:mergeReleaseAssets UP-TO-DATE
+[        ] Caching disabled for task ':app:mergeReleaseAssets' because:
+[        ]   Build cache is disabled
+[        ]   Simple merging task
+[        ] Skipping task ':app:mergeReleaseAssets' as it is up-to-date.
+[        ] Resolve mutations for :app:buildKotlinToolingMetadata (Thread[#278,Execution worker,5,main]) started.
+[        ] :app:buildKotlinToolingMetadata (Thread[#278,Execution worker,5,main]) started.
+[        ] > Task :app:buildKotlinToolingMetadata UP-TO-DATE
+[        ] Caching disabled for task ':app:buildKotlinToolingMetadata' because:
+[        ]   Build cache is disabled
+[        ]   Caching has been disabled for the task
+[        ] Skipping task ':app:buildKotlinToolingMetadata' as it is up-to-date.
+[        ] Resolve mutations for :app:checkReleaseDuplicateClasses (Thread[#278,Execution worker,5,main]) started.
+[        ] :app:checkReleaseDuplicateClasses (Thread[#278,Execution worker,5,main]) started.
+[        ] > Task :app:checkReleaseDuplicateClasses UP-TO-DATE
+[        ] Caching disabled for task ':app:checkReleaseDuplicateClasses' because:
+[        ]   Build cache is disabled
+[        ]   Caching has been disabled for the task
+[        ] Skipping task ':app:checkReleaseDuplicateClasses' as it is up-to-date.
+[        ] Resolve mutations for :app:checkKotlinGradlePluginConfigurationErrors (Thread[#278,Execution worker,5,main]) started.
+[        ] :app:checkKotlinGradlePluginConfigurationErrors (Thread[#278,Execution worker,5,main]) started.
+[        ] > Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+[        ] Skipping task ':app:checkKotlinGradlePluginConfigurationErrors' as task onlyIf 'errorDiagnostics are present' is false.
+[        ] Resolve mutations for :app:generateReleaseResources (Thread[#278,Execution worker,5,main]) started.
+[        ] :app:generateReleaseResources (Thread[#278,Execution worker,5,main]) started.
+[        ] > Task :app:generateReleaseResources UP-TO-DATE
+[        ] Caching disabled for task ':app:generateReleaseResources' because:
+[        ]   Build cache is disabled
+[        ] Skipping task ':app:generateReleaseResources' as it is up-to-date.
+[        ] Resolve mutations for :app:packageReleaseResources (Thread[#278,Execution worker,5,main]) started.
+[        ] :app:packageReleaseResources (Thread[#278,Execution worker,5,main]) started.
+[        ] > Task :app:packageReleaseResources UP-TO-DATE
+[        ] Caching disabled for task ':app:packageReleaseResources' because:
+[        ]   Build cache is disabled
+[        ] Skipping task ':app:packageReleaseResources' as it is up-to-date.
+[        ] Resolve mutations for :app:processReleaseNavigationResources (Thread[#278,Execution worker,5,main]) started.
+[        ] :app:processReleaseNavigationResources (Thread[#278,Execution worker,5,main]) started.
+[        ] > Task :app:processReleaseNavigationResources UP-TO-DATE
+[        ] Caching disabled for task ':app:processReleaseNavigationResources' because:
+[        ]   Build cache is disabled
+[        ] Skipping task ':app:processReleaseNavigationResources' as it is up-to-date.
+[        ] Resolve mutations for :app:parseReleaseLocalResources (Thread[#278,Execution worker,5,main]) started.
+[        ] :app:parseReleaseLocalResources (Thread[#278,Execution worker,5,main]) started.
+[        ] > Task :app:parseReleaseLocalResources UP-TO-DATE
+[        ] Caching disabled for task ':app:parseReleaseLocalResources' because:
+[        ]   Build cache is disabled
+[        ] Skipping task ':app:parseReleaseLocalResources' as it is up-to-date.
+[        ] Resolve mutations for :app:generateReleaseRFile (Thread[#278,Execution worker,5,main]) started.
+[        ] :app:generateReleaseRFile (Thread[#278,Execution worker,5,main]) started.
+[        ] > Task :app:generateReleaseRFile UP-TO-DATE
+[        ] Caching disabled for task ':app:generateReleaseRFile' because:
+[        ]   Build cache is disabled
+[        ] Skipping task ':app:generateReleaseRFile' as it is up-to-date.
+[        ] Resolve mutations for :app:compileReleaseKotlin (Thread[#278,Execution worker,5,main]) started.
+[        ] :app:compileReleaseKotlin (Thread[#278,Execution worker,5,main]) started.
+[        ] > Task :app:compileReleaseKotlin UP-TO-DATE
+[        ] Adding -Xuse-inline-scopes-numbers Kotlin compiler flag for task :app:compileDebugAndroidTestKotlin
+[        ] Caching disabled for task ':app:compileReleaseKotlin' because:
+[        ]   Build cache is disabled
+[        ] Skipping task ':app:compileReleaseKotlin' as it is up-to-date.
+[        ] Resolve mutations for :app:javaPreCompileRelease (Thread[#278,Execution worker,5,main]) started.
+[        ] :app:javaPreCompileRelease (Thread[#278,Execution worker,5,main]) started.
+[        ] > Task :app:javaPreCompileRelease UP-TO-DATE
+[        ] Caching disabled for task ':app:javaPreCompileRelease' because:
+[        ]   Build cache is disabled
+[        ] Skipping task ':app:javaPreCompileRelease' as it is up-to-date.
+[        ] Resolve mutations for :app:compileReleaseJavaWithJavac (Thread[#278,Execution worker,5,main]) started.
+[        ] :app:compileReleaseJavaWithJavac (Thread[#278,Execution worker,5,main]) started.
+[        ] > Task :app:compileReleaseJavaWithJavac UP-TO-DATE
+[        ] Custom actions are attached to task ':app:compileReleaseJavaWithJavac'.
+[        ] Caching disabled for task ':app:compileReleaseJavaWithJavac' because:
+[        ]   Build cache is disabled
+[        ] Skipping task ':app:compileReleaseJavaWithJavac' as it is up-to-date.
+[        ] Resolve mutations for :app:mergeReleaseArtProfile (Thread[#278,Execution worker,5,main]) started.
+[        ] :app:mergeReleaseArtProfile (Thread[#278,Execution worker,5,main]) started.
+[        ] > Task :app:mergeReleaseArtProfile UP-TO-DATE
+[        ] Caching disabled for task ':app:mergeReleaseArtProfile' because:
+[        ]   Build cache is disabled
+[        ]   Simple merging task
+[        ] Skipping task ':app:mergeReleaseArtProfile' as it is up-to-date.
+[        ] Resolve mutations for :app:checkReleaseAarMetadata (Thread[#278,Execution worker,5,main]) started.
+[        ] :app:checkReleaseAarMetadata (Thread[#278,Execution worker,5,main]) started.
+[        ] > Task :app:checkReleaseAarMetadata UP-TO-DATE
+[        ] Caching disabled for task ':app:checkReleaseAarMetadata' because:
+[        ]   Build cache is disabled
+[        ]   Caching has been disabled for the task
+[        ] Skipping task ':app:checkReleaseAarMetadata' as it is up-to-date.
+[        ] Resolve mutations for :app:mapReleaseSourceSetPaths (Thread[#278,Execution worker,5,main]) started.
+[        ] :app:mapReleaseSourceSetPaths (Thread[#278,Execution worker,5,main]) started.
+[        ] > Task :app:mapReleaseSourceSetPaths UP-TO-DATE
+[        ] Caching disabled for task ':app:mapReleaseSourceSetPaths' because:
+[        ]   Build cache is disabled
+[        ]   Caching has been disabled for the task
+[        ] Skipping task ':app:mapReleaseSourceSetPaths' as it is up-to-date.
+[        ] Resolve mutations for :app:compileReleaseNavigationResources (Thread[#278,Execution worker,5,main]) started.
+[        ] :app:compileReleaseNavigationResources (Thread[#278,Execution worker,5,main]) started.
+[        ] > Task :app:compileReleaseNavigationResources UP-TO-DATE
+[        ] Caching disabled for task ':app:compileReleaseNavigationResources' because:
+[        ]   Build cache is disabled
+[        ] Skipping task ':app:compileReleaseNavigationResources' as it is up-to-date.
+[        ] Resolve mutations for :app:mergeReleaseResources (Thread[#278,Execution worker,5,main]) started.
+[        ] :app:mergeReleaseResources (Thread[#278,Execution worker,5,main]) started.
+[        ] > Task :app:mergeReleaseResources UP-TO-DATE
+[        ] Caching disabled for task ':app:mergeReleaseResources' because:
+[        ]   Build cache is disabled
+[        ] Skipping task ':app:mergeReleaseResources' as it is up-to-date.
+[        ] Resolve mutations for :app:createReleaseCompatibleScreenManifests (Thread[#278,Execution worker,5,main]) started.
+[        ] :app:createReleaseCompatibleScreenManifests (Thread[#278,Execution worker,5,main]) started.
+[        ] > Task :app:createReleaseCompatibleScreenManifests UP-TO-DATE
+[        ] Caching disabled for task ':app:createReleaseCompatibleScreenManifests' because:
+[        ]   Build cache is disabled
+[        ]   Caching has been disabled for the task
+[        ] Skipping task ':app:createReleaseCompatibleScreenManifests' as it is up-to-date.
+[        ] Resolve mutations for :app:extractDeepLinksRelease (Thread[#278,Execution worker,5,main]) started.
+[        ] :app:extractDeepLinksRelease (Thread[#278,Execution worker,5,main]) started.
+[        ] > Task :app:extractDeepLinksRelease UP-TO-DATE
+[        ] Caching disabled for task ':app:extractDeepLinksRelease' because:
+[        ]   Build cache is disabled
+[        ] Skipping task ':app:extractDeepLinksRelease' as it is up-to-date.
+[        ] Resolve mutations for :app:processReleaseMainManifest (Thread[#278,Execution worker,5,main]) started.
+[        ] :app:processReleaseMainManifest (Thread[#278,Execution worker,5,main]) started.
+[        ] > Task :app:processReleaseMainManifest UP-TO-DATE
+[        ] Caching disabled for task ':app:processReleaseMainManifest' because:
+[        ]   Build cache is disabled
+[        ] Skipping task ':app:processReleaseMainManifest' as it is up-to-date.
+[  +98 ms] Resolve mutations for :app:outputReleaseAppLinkSettings (Thread[#278,Execution worker,5,main]) started.
+[        ] :app:outputReleaseAppLinkSettings (Thread[#278,Execution worker,5,main]) started.
+[        ] > Task :app:outputReleaseAppLinkSettings UP-TO-DATE
+[        ] Caching disabled for task ':app:outputReleaseAppLinkSettings' because:
+[        ]   Build cache is disabled
+[        ] Skipping task ':app:outputReleaseAppLinkSettings' as it is up-to-date.
+[        ] Resolve mutations for :app:enableHcppInManifestRelease (Thread[#278,Execution worker,5,main]) started.
+[        ] :app:enableHcppInManifestRelease (Thread[#278,Execution worker,5,main]) started.
+[        ] > Task :app:enableHcppInManifestRelease UP-TO-DATE
+[        ] Caching disabled for task ':app:enableHcppInManifestRelease' because:
+[        ]   Build cache is disabled
+[        ] Skipping task ':app:enableHcppInManifestRelease' as it is up-to-date.
+[        ] Resolve mutations for :app:processReleaseManifest (Thread[#278,Execution worker,5,main]) started.
+[        ] :app:processReleaseManifest (Thread[#278,Execution worker,5,main]) started.
+[        ] > Task :app:processReleaseManifest UP-TO-DATE
+[        ] Caching disabled for task ':app:processReleaseManifest' because:
+[        ]   Build cache is disabled
+[        ] Skipping task ':app:processReleaseManifest' as it is up-to-date.
+[        ] Resolve mutations for :app:processReleaseManifestForPackage (Thread[#278,Execution worker,5,main]) started.
+[        ] :app:processReleaseManifestForPackage (Thread[#278,Execution worker,5,main]) started.
+[        ] > Task :app:processReleaseManifestForPackage UP-TO-DATE
+[        ] Custom actions are attached to task ':app:processReleaseManifestForPackage'.
+[        ] Caching disabled for task ':app:processReleaseManifestForPackage' because:
+[        ]   Build cache is disabled
+[        ] Skipping task ':app:processReleaseManifestForPackage' as it is up-to-date.
+[        ] Resolve mutations for :app:processReleaseResources (Thread[#278,Execution worker,5,main]) started.
+[        ] :app:processReleaseResources (Thread[#278,Execution worker,5,main]) started.
+[        ] > Task :app:processReleaseResources UP-TO-DATE
+[        ] Caching disabled for task ':app:processReleaseResources' because:
+[        ]   Build cache is disabled
+[        ] Skipping task ':app:processReleaseResources' as it is up-to-date.
+[        ] Resolve mutations for :app:expandReleaseArtProfileWildcards (Thread[#278,Execution worker,5,main]) started.
+[        ] :app:expandReleaseArtProfileWildcards (Thread[#278,Execution worker,5,main]) started.
+[        ] > Task :app:expandReleaseArtProfileWildcards UP-TO-DATE
+[        ] Caching disabled for task ':app:expandReleaseArtProfileWildcards' because:
+[        ]   Build cache is disabled
+[        ] Skipping task ':app:expandReleaseArtProfileWildcards' as it is up-to-date.
+[        ] Resolve mutations for :app:extractProguardFiles (Thread[#278,Execution worker,5,main]) started.
+[        ] :app:extractProguardFiles (Thread[#278,Execution worker,5,main]) started.
+[        ] > Task :app:extractProguardFiles UP-TO-DATE
+[        ] Caching disabled for task ':app:extractProguardFiles' because:
+[        ]   Build cache is disabled
+[        ]   Fast task
+[        ] Skipping task ':app:extractProguardFiles' as it is up-to-date.
+[        ] Resolve mutations for :app:mergeReleaseGeneratedProguardFiles (Thread[#278,Execution worker,5,main]) started.
+[        ] :app:mergeReleaseGeneratedProguardFiles (Thread[#278,Execution worker,5,main]) started.
+[        ] > Task :app:mergeReleaseGeneratedProguardFiles UP-TO-DATE
+[        ] Caching disabled for task ':app:mergeReleaseGeneratedProguardFiles' because:
+[        ]   Build cache is disabled
+[        ]   Simple merging task
+[        ] Skipping task ':app:mergeReleaseGeneratedProguardFiles' as it is up-to-date.
+[        ] Resolve mutations for :app:processReleaseJavaRes (Thread[#278,Execution worker,5,main]) started.
+[        ] :app:processReleaseJavaRes (Thread[#278,Execution worker,5,main]) started.
+[        ] > Task :app:processReleaseJavaRes UP-TO-DATE
+[        ] file or directory '~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/android/app/src/main/resources', not found
+[        ] file or directory '~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/android/app/src/release/resources', not found
+[        ] Caching disabled for task ':app:processReleaseJavaRes' because:
+[        ]   Build cache is disabled
+[        ]   Caching has been disabled for the task
+[        ] Skipping task ':app:processReleaseJavaRes' as it is up-to-date.
+[        ] Resolve mutations for :app:mergeReleaseJavaResource (Thread[#278,Execution worker,5,main]) started.
+[        ] :app:mergeReleaseJavaResource (Thread[#278,Execution worker,5,main]) started.
+[        ] > Task :app:mergeReleaseJavaResource UP-TO-DATE
+[        ] Caching disabled for task ':app:mergeReleaseJavaResource' because:
+[        ]   Build cache is disabled
+[        ]   Caching has been disabled for the task
+[        ] Skipping task ':app:mergeReleaseJavaResource' as it is up-to-date.
+[        ] Resolve mutations for :app:mergeReleaseStartupProfile (Thread[#278,Execution worker,5,main]) started.
+[        ] :app:mergeReleaseStartupProfile (Thread[#278,Execution worker,5,main]) started.
+[        ] > Task :app:mergeReleaseStartupProfile UP-TO-DATE
+[        ] Caching disabled for task ':app:mergeReleaseStartupProfile' because:
+[        ]   Build cache is disabled
+[        ]   Simple merging task
+[        ] Skipping task ':app:mergeReleaseStartupProfile' as it is up-to-date.
+[        ] Resolve mutations for :app:minifyReleaseWithR8 (Thread[#278,Execution worker,5,main]) started.
+[        ] :app:minifyReleaseWithR8 (Thread[#278,Execution worker,5,main]) started.
+[        ] > Task :app:minifyReleaseWithR8 UP-TO-DATE
+[        ] file or directory '~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/android/app/src/main/keepRules', not found
+[        ] file or directory '~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/android/app/src/release/keepRules', not found
+[        ] Caching disabled for task ':app:minifyReleaseWithR8' because:
+[        ]   Build cache is disabled
+[        ] Skipping task ':app:minifyReleaseWithR8' as it is up-to-date.
+[        ] Resolve mutations for :app:copyJniLibsflutterBuildRelease (Thread[#278,Execution worker,5,main]) started.
+[        ] :app:copyJniLibsflutterBuildRelease (Thread[#278,Execution worker,5,main]) started.
+[  +88 ms] > Task :app:copyJniLibsflutterBuildRelease
+[        ] Caching disabled for task ':app:copyJniLibsflutterBuildRelease' because:
+[        ]   Build cache is disabled
+[        ]   Caching has not been enabled for the task
+[        ] Task ':app:copyJniLibsflutterBuildRelease' is not up-to-date because:
+[        ]   Input property 'intermediateDir' file ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/app/intermediates/flutter/release/arm64-v8a/app.so has changed.
+[        ]   Input property 'intermediateDir' file ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/app/intermediates/flutter/release/armeabi-v7a/app.so has changed.
+[        ]   Input property 'intermediateDir' file ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/app/intermediates/flutter/release/x86_64/app.so has changed.
+[        ] file or directory '~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/app/intermediates/flutter/release/native_assets/jniLibs/lib/armeabi-v7a', not found
+[        ] file or directory '~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/app/intermediates/flutter/release/native_assets/jniLibs/lib/arm64-v8a', not found
+[        ] file or directory '~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/app/intermediates/flutter/release/native_assets/jniLibs/lib/x86_64', not found
+[        ] Resolve mutations for :app:mergeReleaseJniLibFolders (Thread[#278,Execution worker,5,main]) started.
+[        ] :app:mergeReleaseJniLibFolders (Thread[#278,Execution worker,5,main]) started.
+[ +201 ms] > Task :app:mergeReleaseJniLibFolders
+[        ] Caching disabled for task ':app:mergeReleaseJniLibFolders' because:
+[        ]   Build cache is disabled
+[        ]   Simple merging task
+[        ] Task ':app:mergeReleaseJniLibFolders' is not up-to-date because:
+[        ]   Input property 'sourceFolderInputs' file ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/app/generated/jniLibs/copyJniLibsflutterBuildRelease/arm64-v8a/libapp.so has changed.
+[        ]   Input property 'sourceFolderInputs' file ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/app/generated/jniLibs/copyJniLibsflutterBuildRelease/armeabi-v7a/libapp.so has changed.
+[        ]   Input property 'sourceFolderInputs' file ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/app/generated/jniLibs/copyJniLibsflutterBuildRelease/x86_64/libapp.so has changed.
+[        ] Resolve mutations for :app:mergeReleaseNativeLibs (Thread[#278,Execution worker,5,main]) started.
+[        ] :app:mergeReleaseNativeLibs (Thread[#278,Execution worker,5,main]) started.
+[        ] Resolve mutations for :app:writeReleaseAppMetadata (Thread[#277,included builds,5,main]) started.
+[        ] :app:writeReleaseAppMetadata (Thread[#277,included builds,5,main]) started.
+[        ] > Task :app:writeReleaseAppMetadata UP-TO-DATE
+[        ] Caching disabled for task ':app:writeReleaseAppMetadata' because:
+[        ]   Build cache is disabled
+[        ]   Caching has been disabled for the task
+[        ] Skipping task ':app:writeReleaseAppMetadata' as it is up-to-date.
+[        ] Resolve mutations for :app:compileReleaseArtProfile (Thread[#277,included builds,5,main]) started.
+[        ] :app:compileReleaseArtProfile (Thread[#277,included builds,5,main]) started.
+[        ] > Task :app:compileReleaseArtProfile UP-TO-DATE
+[        ] Caching disabled for task ':app:compileReleaseArtProfile' because:
+[        ]   Build cache is disabled
+[        ] Skipping task ':app:compileReleaseArtProfile' as it is up-to-date.
+[        ] Resolve mutations for :app:collectReleaseDependencies (Thread[#277,included builds,5,main]) started.
+[        ] :app:collectReleaseDependencies (Thread[#277,included builds,5,main]) started.
+[        ] > Task :app:collectReleaseDependencies UP-TO-DATE
+[        ] Caching disabled for task ':app:collectReleaseDependencies' because:
+[        ]   Build cache is disabled
+[        ]   Caching has been disabled for the task
+[        ] Skipping task ':app:collectReleaseDependencies' as it is up-to-date.
+[        ] Resolve mutations for :app:configureReleaseDependencies (Thread[#277,included builds,5,main]) started.
+[        ] :app:configureReleaseDependencies (Thread[#277,included builds,5,main]) started.
+[        ] > Task :app:configureReleaseDependencies UP-TO-DATE
+[        ] Caching disabled for task ':app:configureReleaseDependencies' because:
+[        ]   Build cache is disabled
+[        ]   Caching has been disabled for the task
+[        ] Skipping task ':app:configureReleaseDependencies' as it is up-to-date.
+[        ] Resolve mutations for :app:generateReleaseLintVitalReportModel (Thread[#277,included builds,5,main]) started.
+[        ] :app:generateReleaseLintVitalReportModel (Thread[#277,included builds,5,main]) started.
+[  +97 ms] > Task :app:generateReleaseLintVitalReportModel UP-TO-DATE
+[        ] Caching disabled for task ':app:generateReleaseLintVitalReportModel' because:
+[        ]   Build cache is disabled
+[        ]   Caching has been disabled for the task
+[        ] Skipping task ':app:generateReleaseLintVitalReportModel' as it is up-to-date.
+[        ] Resolve mutations for :app:lintVitalAnalyzeRelease (Thread[#277,included builds,5,main]) started.
+[        ] :app:lintVitalAnalyzeRelease (Thread[#277,included builds,5,main]) started.
+[        ] > Task :app:lintVitalAnalyzeRelease UP-TO-DATE
+[        ] Caching disabled for task ':app:lintVitalAnalyzeRelease' because:
+[        ]   Build cache is disabled
+[        ] Skipping task ':app:lintVitalAnalyzeRelease' as it is up-to-date.
+[        ] Resolve mutations for :app:lintVitalReportRelease (Thread[#277,included builds,5,main]) started.
+[        ] :app:lintVitalReportRelease (Thread[#277,included builds,5,main]) started.
+[        ] > Task :app:lintVitalReportRelease UP-TO-DATE
+[        ] Caching disabled for task ':app:lintVitalReportRelease' because:
+[        ]   Build cache is disabled
+[        ]   Caching has been disabled for the task
+[        ] Skipping task ':app:lintVitalReportRelease' as it is up-to-date.
+[        ] Resolve mutations for :app:lintVitalRelease (Thread[#277,included builds,5,main]) started.
+[        ] :app:lintVitalRelease (Thread[#277,included builds,5,main]) started.
+[        ] > Task :app:lintVitalRelease
+[        ] Caching disabled for task ':app:lintVitalRelease' because:
+[        ]   Build cache is disabled
+[        ]   Caching has been disabled for the task
+[        ] Task ':app:lintVitalRelease' is not up-to-date because:
+[        ]   Task.upToDateWhen is false.
+[        ] Resolve mutations for :app:parseReleaseIntegrityConfig (Thread[#277,included builds,5,main]) started.
+[        ] :app:parseReleaseIntegrityConfig (Thread[#277,included builds,5,main]) started.
+[        ] > Task :app:parseReleaseIntegrityConfig UP-TO-DATE
+[        ] Caching disabled for task ':app:parseReleaseIntegrityConfig' because:
+[        ]   Build cache is disabled
+[        ] Skipping task ':app:parseReleaseIntegrityConfig' as it is up-to-date.
+[        ] Resolve mutations for :app:validateSigningRelease (Thread[#277,included builds,5,main]) started.
+[        ] :app:validateSigningRelease (Thread[#277,included builds,5,main]) started.
+[        ] > Task :app:validateSigningRelease UP-TO-DATE
+[        ] Caching disabled for task ':app:validateSigningRelease' because:
+[        ]   Build cache is disabled
+[        ]   Caching has been disabled for the task
+[        ] Skipping task ':app:validateSigningRelease' as it is up-to-date.
+[+1897 ms] > Task :app:mergeReleaseNativeLibs
+[        ] Caching disabled for task ':app:mergeReleaseNativeLibs' because:
+[        ]   Build cache is disabled
+[        ]   Caching has been disabled for the task
+[        ] Task ':app:mergeReleaseNativeLibs' is not up-to-date because:
+[        ]   Input property 'projectNativeLibs' file ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/app/intermediates/merged_jni_libs/release/mergeReleaseJniLibFolders/out/arm64-v8a/libapp.so has changed.
+[        ]   Input property 'projectNativeLibs' file ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/app/intermediates/merged_jni_libs/release/mergeReleaseJniLibFolders/out/armeabi-v7a/libapp.so has changed.
+[        ]   Input property 'projectNativeLibs' file ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/app/intermediates/merged_jni_libs/release/mergeReleaseJniLibFolders/out/x86_64/libapp.so has changed.
+[ +507 ms] Resolve mutations for :app:stripReleaseDebugSymbols (Thread[#278,Execution worker,5,main]) started.
+[        ] :app:stripReleaseDebugSymbols (Thread[#278,Execution worker,5,main]) started.
+[  +91 ms] > Task :app:stripReleaseDebugSymbols
+[        ] Caching disabled for task ':app:stripReleaseDebugSymbols' because:
+[        ]   Build cache is disabled
+[        ]   Caching has been disabled for the task
+[        ] Task ':app:stripReleaseDebugSymbols' is not up-to-date because:
+[        ]   Input property 'inputDir' file ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/app/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/arm64-v8a/libapp.so has changed.
+[        ]   Input property 'inputDir' file ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/app/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/armeabi-v7a/libapp.so has changed.
+[        ]   Input property 'inputDir' file ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/app/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/x86_64/libapp.so has changed.
+[        ] C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+[        ] C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+[        ] C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+[        ] C/C++: android.ndkPath from module build.gradle is not set
+[        ] C/C++: android.ndkPath from module build.gradle is not set
+[        ] C/C++: ndk.dir in local.properties is not set
+[        ] C/C++: ndk.dir in local.properties is not set
+[        ] C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+[        ] C/C++: android.ndkPath from module build.gradle is not set
+[        ] C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+[        ] C/C++: sdkFolder is ~/Library/Android/sdk
+[        ] C/C++: ndk.dir in local.properties is not set
+[        ] C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+[        ] C/C++: sdkFolder is ~/Library/Android/sdk
+[        ] C/C++: sdkFolder is ~/Library/Android/sdk
+[        ] Starting process 'command '~/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-strip''. Working directory: ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/android/app Command: ~/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-strip --strip-unneeded -o ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/app/intermediates/stripped_native_libs/release/stripReleaseDebugSymbols/out/lib/x86_64/libapp.so ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/app/intermediates/merg
+[        ] Starting process 'command '~/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-strip''. Working directory: ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/android/app Command: ~/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-strip --strip-unneeded -o ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/app/intermediates/stripped_native_libs/release/stripReleaseDebugSymbols/out/lib/armeabi-v7a/libapp.so ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/app/intermediates
+[        ] Starting process 'command '~/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-strip''. Working directory: ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/android/app Command: ~/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-strip --strip-unneeded -o ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/app/intermediates/stripped_native_libs/release/stripReleaseDebugSymbols/out/lib/arm64-v8a/libapp.so ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/app/intermediates/m
+[        ] Successfully started process 'command '~/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-strip''
+[        ] Successfully started process 'command '~/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-strip''
+[        ] Successfully started process 'command '~/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-strip''
+[        ] Resolve mutations for :app:buildReleasePreBundle (Thread[#278,Execution worker,5,main]) started.
+[        ] :app:buildReleasePreBundle (Thread[#278,Execution worker,5,main]) started.
+[ +197 ms] > Task :app:buildReleasePreBundle
+[        ] Caching disabled for task ':app:buildReleasePreBundle' because:
+[        ]   Build cache is disabled
+[        ]   Caching has been disabled for the task
+[        ] Task ':app:buildReleasePreBundle' is not up-to-date because:
+[        ]   Input property 'nativeLibsFiles' file ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/app/intermediates/stripped_native_libs/release/stripReleaseDebugSymbols/out/lib/arm64-v8a/libapp.so has changed.
+[        ]   Input property 'nativeLibsFiles' file ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/app/intermediates/stripped_native_libs/release/stripReleaseDebugSymbols/out/lib/armeabi-v7a/libapp.so has changed.
+[        ]   Input property 'nativeLibsFiles' file ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/app/intermediates/stripped_native_libs/release/stripReleaseDebugSymbols/out/lib/x86_64/libapp.so has changed.
+[        ] Resolve mutations for :app:extractReleaseNativeSymbolTables (Thread[#278,Execution worker,5,main]) started.
+[        ] :app:extractReleaseNativeSymbolTables (Thread[#278,Execution worker,5,main]) started.
+[ +200 ms] > Task :app:extractReleaseNativeSymbolTables
+[        ] Caching disabled for task ':app:extractReleaseNativeSymbolTables' because:
+[        ]   Build cache is disabled
+[        ] Task ':app:extractReleaseNativeSymbolTables' is not up-to-date because:
+[        ]   Input property 'inputDir' file ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/app/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/arm64-v8a/libapp.so has changed.
+[        ]   Input property 'inputDir' file ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/app/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/armeabi-v7a/libapp.so has changed.
+[        ]   Input property 'inputDir' file ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/app/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/x86_64/libapp.so has changed.
+[        ]   and more...
+[        ] C/C++: android.ndkVersion from module build.gradle is [28.2.13676358]
+[        ] C/C++: android.ndkPath from module build.gradle is not set
+[        ] C/C++: ndk.dir in local.properties is not set
+[        ] C/C++: Not considering ANDROID_NDK_HOME because support was removed after deprecation period.
+[        ] C/C++: sdkFolder is ~/Library/Android/sdk
+[        ] Starting process 'command '~/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-objcopy''. Working directory: ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/android/app Command: ~/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-objcopy --strip-debug ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/app/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/armeabi-v7a/libflutter.so ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/app/intermediates/n
+[        ] Starting process 'command '~/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-objcopy''. Working directory: ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/android/app Command: ~/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-objcopy --strip-debug ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/app/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/armeabi-v7a/libapp.so ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/app/intermediates/nativ
+[        ] Starting process 'command '~/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-objcopy''. Working directory: ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/android/app Command: ~/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-objcopy --strip-debug ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/app/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/arm64-v8a/libapp.so ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/app/intermediates/native_
+[        ] Starting process 'command '~/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-objcopy''. Working directory: ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/android/app Command: ~/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-objcopy --strip-debug ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/app/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/arm64-v8a/libflutter.so ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/app/intermediates/nat
+[        ] Starting process 'command '~/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-objcopy''. Working directory: ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/android/app Command: ~/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-objcopy --strip-debug ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/app/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/x86_64/libflutter.so ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/app/intermediates/native
+[        ] Starting process 'command '~/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-objcopy''. Working directory: ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/android/app Command: ~/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-objcopy --strip-debug ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/app/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/x86_64/libapp.so ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/app/intermediates/native_sym
+[        ] Successfully started process 'command '~/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-objcopy''
+[        ] Successfully started process 'command '~/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-objcopy''
+[        ] Successfully started process 'command '~/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-objcopy''
+[        ] Successfully started process 'command '~/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-objcopy''
+[        ] Successfully started process 'command '~/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-objcopy''
+[        ] Successfully started process 'command '~/Library/Android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-objcopy''
+[        ] Resolve mutations for :app:packageReleaseBundle (Thread[#278,Execution worker,5,main]) started.
+[        ] :app:packageReleaseBundle (Thread[#278,Execution worker,5,main]) started.
+[ +804 ms] > Task :app:packageReleaseBundle
+[        ] Caching disabled for task ':app:packageReleaseBundle' because:
+[        ]   Build cache is disabled
+[        ]   Caching has been disabled for the task
+[        ] Task ':app:packageReleaseBundle' is not up-to-date because:
+[        ]   Input property 'baseModuleZip' file ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/app/intermediates/module_bundle/release/buildReleasePreBundle/base.zip has changed.
+[        ]   Input property 'nativeDebugMetadataFiles' file ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/app/intermediates/native_symbol_tables/release/extractReleaseNativeSymbolTables/out/arm64-v8a/libapp.so.sym has changed.
+[        ]   Input property 'nativeDebugMetadataFiles' file ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/app/intermediates/native_symbol_tables/release/extractReleaseNativeSymbolTables/out/armeabi-v7a/libapp.so.sym has changed.
+[        ]   and more...
+[        ] Resolve mutations for :app:signReleaseBundle (Thread[#278,Execution worker,5,main]) started.
+[        ] :app:signReleaseBundle (Thread[#278,Execution worker,5,main]) started.
+[+1986 ms] > Task :app:signReleaseBundle
+[        ] Caching disabled for task ':app:signReleaseBundle' because:
+[        ]   Build cache is disabled
+[        ]   Caching has been disabled for the task
+[        ] Task ':app:signReleaseBundle' is not up-to-date because:
+[        ]   Input property 'intermediaryBundleFile' file ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/app/intermediates/intermediary_bundle/release/packageReleaseBundle/intermediary-bundle.aab has changed.
+[        ] Resolve mutations for :app:produceReleaseBundleIdeListingFile (Thread[#278,Execution worker,5,main]) started.
+[        ] :app:produceReleaseBundleIdeListingFile (Thread[#278,Execution worker,5,main]) started.
+[        ] > Task :app:produceReleaseBundleIdeListingFile
+[        ] Caching disabled for task ':app:produceReleaseBundleIdeListingFile' because:
+[        ]   Build cache is disabled
+[        ]   Fast task
+[        ] Task ':app:produceReleaseBundleIdeListingFile' is not up-to-date because:
+[        ]   Input property 'finalBundleFile' file ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/app/outputs/bundle/release/app-release.aab has changed.
+[        ] Resolve mutations for :app:createReleaseBundleListingFileRedirect (Thread[#278,Execution worker,5,main]) started.
+[   +1 ms] :app:createReleaseBundleListingFileRedirect (Thread[#278,Execution worker,5,main]) started.
+[        ] > Task :app:createReleaseBundleListingFileRedirect UP-TO-DATE
+[        ] Caching disabled for task ':app:createReleaseBundleListingFileRedirect' because:
+[        ]   Build cache is disabled
+[        ]   Caching has been disabled for the task
+[        ] Skipping task ':app:createReleaseBundleListingFileRedirect' as it is up-to-date.
+[        ] Resolve mutations for :app:bundleRelease (Thread[#278,Execution worker,5,main]) started.
+[        ] :app:bundleRelease (Thread[#278,Execution worker,5,main]) started.
+[        ] > Task :app:bundleRelease
+[        ] Skipping task ':app:bundleRelease' as it has no actions.
+[        ] [Incubating] Problems report is available at: file://~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/reports/problems/problems-report.html
+[        ] Deprecated Gradle features were used in this build, making it incompatible with Gradle 10.
+[        ] You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+[        ] For more on this, please refer to https://docs.gradle.org/9.5.0/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+[        ] BUILD SUCCESSFUL in 17s
+[        ] 59 actionable tasks: 13 executed, 46 up-to-date
+[        ] Watched directory hierarchies: [~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/flutter/b259cf5419ac79d1da59099b2ebbaa9f8f519877/packages/flutter_tools/gradle, ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/android]
+[   +9 ms] Running Gradle task 'bundleRelease'... (completed in 17.8s)
+[   +3 ms] Shorebird build trace written to ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/shorebird/debug/build-trace-android.json. View at https://ui.perfetto.dev
+[   +1 ms] executing: [~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/android/] ~/Library/Android/sdk/cmdline-tools/latest/bin/apkanalyzer files list ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/app/outputs/bundle/release/app-release.aab
+[ +665 ms] /
+           /META-INF/
+           /META-INF/MANIFEST.MF
+           /META-INF/ANDROIDD.RSA
+           /META-INF/ANDROIDD.SF
+           /base/
+           /base/root/
+           /base/root/kotlin/
+           /base/root/kotlin/reflect/
+           /base/root/kotlin/reflect/reflect.kotlin_builtins
+           /base/root/kotlin/ranges/
+           /base/root/kotlin/ranges/ranges.kotlin_builtins
+           /base/root/kotlin/kotlin.kotlin_builtins
+           /base/root/kotlin/internal/
+           /base/root/kotlin/internal/internal.kotlin_builtins
+           /base/root/kotlin/coroutines/
+           /base/root/kotlin/coroutines/coroutines.kotlin_builtins
+           /base/root/kotlin/concurrent/
+           /base/root/kotlin/concurrent/atomics/
+           /base/root/kotlin/concurrent/atomics/atomics.kotlin_builtins
+           /base/root/kotlin/collections/
+           /base/root/kotlin/collections/collections.kotlin_builtins
+           /base/root/kotlin/annotation/
+           /base/root/kotlin/annotation/annotation.kotlin_builtins
+           /base/root/kotlin-tooling-metadata.json
+           /base/root/META-INF/
+           /base/root/META-INF/version-control-info.textproto
+           /base/root/META-INF/services/
+           /base/root/META-INF/services/j0
+           /base/root/META-INF/services/i0
+           /base/root/META-INF/kotlinx_coroutines_core.version
+           /base/root/META-INF/kotlinx_coroutines_android.version
+           /base/root/META-INF/com/
+           /base/root/META-INF/com/android/
+           /base/root/META-INF/com/android/build/
+           /base/root/META-INF/com/android/build/gradle/
+           /base/root/META-INF/com/android/build/gradle/app-metadata.properties
+           /base/root/META-INF/androidx.window_window.version
+           /base/root/META-INF/androidx.window_window-java.version
+           /base/root/META-INF/androidx.window.extensions.core_core.version
+           /base/root/META-INF/androidx.viewpager_viewpager.version
+           /base/root/META-INF/androidx.versionedparcelable_versionedparcelable.version
+           /base/root/META-INF/androidx.tracing_tracing.version
+           /base/root/META-INF/androidx.startup_startup-runtime.version
+           /base/root/META-INF/androidx.savedstate_savedstate.version
+           /base/root/META-INF/androidx.profileinstaller_profileinstaller.version
+           /base/root/META-INF/androidx.loader_loader.version
+           /base/root/META-INF/androidx.lifecycle_lifecycle-viewmodel.version
+           /base/root/META-INF/androidx.lifecycle_lifecycle-viewmodel-savedstate.version
+           /base/root/META-INF/androidx.lifecycle_lifecycle-runtime.version
+           /base/root/META-INF/androidx.lifecycle_lifecycle-process.version
+           /base/root/META-INF/androidx.lifecycle_lifecycle-livedata.version
+           /base/root/META-INF/androidx.lifecycle_lifecycle-livedata-core.version
+           /base/root/META-INF/androidx.lifecycle_lifecycle-livedata-core-ktx.version
+           /base/root/META-INF/androidx.interpolator_interpolator.version
+           /base/root/META-INF/androidx.fragment_fragment.version
+           /base/root/META-INF/androidx.exifinterface_exifinterface.version
+           /base/root/META-INF/androidx.customview_customview.version
+           /base/root/META-INF/androidx.core_core.version
+           /base/root/META-INF/androidx.core_core-ktx.version
+           /base/root/META-INF/androidx.arch.core_core-runtime.version
+           /base/root/META-INF/androidx.annotation_annotation-experimental.version
+           /base/root/META-INF/androidx.activity_activity.version
+           /base/root/DebugProbesKt.bin
+           /base/resources.pb
+           /base/res/
+           /base/res/mipmap-xxxhdpi-v4/
+           /base/res/mipmap-xxxhdpi-v4/ic_launcher.png
+           /base/res/mipmap-xxhdpi-v4/
+           /base/res/mipmap-xxhdpi-v4/ic_launcher.png
+           /base/res/mipmap-xhdpi-v4/
+           /base/res/mipmap-xhdpi-v4/ic_launcher.png
+           /base/res/mipmap-mdpi-v4/
+           /base/res/mipmap-mdpi-v4/ic_launcher.png
+           /base/res/mipmap-hdpi-v4/
+           /base/res/mipmap-hdpi-v4/ic_launcher.png
+           /base/res/drawable-v21/
+           /base/res/drawable-v21/launch_background.xml
+           /base/native.pb
+           /base/manifest/
+           /base/manifest/AndroidManifest.xml
+           /base/lib/
+           /base/lib/x86_64/
+           /base/lib/x86_64/libflutter.so
+           /base/lib/x86_64/libapp.so
+           /base/lib/armeabi-v7a/
+           /base/lib/armeabi-v7a/libflutter.so
+           /base/lib/armeabi-v7a/libapp.so
+           /base/lib/arm64-v8a/
+           /base/lib/arm64-v8a/libflutter.so
+           /base/lib/arm64-v8a/libapp.so
+           /base/dex/
+           /base/dex/classes.dex
+           /base/assets/
+           /base/assets/flutter_assets/
+           /base/assets/flutter_assets/shorebird.yaml
+           /base/assets/flutter_assets/shaders/
+           /base/assets/flutter_assets/shaders/stretch_effect.frag
+           /base/assets/flutter_assets/shaders/ink_sparkle.frag
+           /base/assets/flutter_assets/packages/
+           /base/assets/flutter_assets/packages/material_ui/
+           /base/assets/flutter_assets/packages/material_ui/shaders/
+           /base/assets/flutter_assets/packages/material_ui/shaders/ink_sparkle.frag
+           /base/assets/flutter_assets/packages/cupertino_icons/
+           /base/assets/flutter_assets/packages/cupertino_icons/assets/
+           /base/assets/flutter_assets/packages/cupertino_icons/assets/CupertinoIcons.ttf
+           /base/assets/flutter_assets/fonts/
+           /base/assets/flutter_assets/fonts/MaterialIcons-Regular.otf
+           /base/assets/flutter_assets/NativeAssetsManifest.json
+           /base/assets/flutter_assets/NOTICES.Z
+           /base/assets/flutter_assets/FontManifest.json
+           /base/assets/flutter_assets/AssetManifest.bin
+           /base/assets.pb
+           /BundleConfig.pb
+           /BUNDLE-METADATA/
+           /BUNDLE-METADATA/com.android.tools/
+           /BUNDLE-METADATA/com.android.tools/r8.json
+           /BUNDLE-METADATA/com.android.tools.build.profiles/
+           /BUNDLE-METADATA/com.android.tools.build.profiles/baseline.profm
+           /BUNDLE-METADATA/com.android.tools.build.profiles/baseline.prof
+           /BUNDLE-METADATA/com.android.tools.build.obfuscation/
+           /BUNDLE-METADATA/com.android.tools.build.obfuscation/proguard.map
+           /BUNDLE-METADATA/com.android.tools.build.libraries/
+           /BUNDLE-METADATA/com.android.tools.build.libraries/dependencies.pb
+           /BUNDLE-METADATA/com.android.tools.build.gradle/
+           /BUNDLE-METADATA/com.android.tools.build.gradle/app-metadata.properties
+           /BUNDLE-METADATA/com.android.tools.build.debugsymbols/
+           /BUNDLE-METADATA/com.android.tools.build.debugsymbols/x86_64/
+           /BUNDLE-METADATA/com.android.tools.build.debugsymbols/x86_64/libflutter.so.sym
+           /BUNDLE-METADATA/com.android.tools.build.debugsymbols/x86_64/libapp.so.sym
+           /BUNDLE-METADATA/com.android.tools.build.debugsymbols/armeabi-v7a/
+           /BUNDLE-METADATA/com.android.tools.build.debugsymbols/armeabi-v7a/libflutter.so.sym
+           /BUNDLE-METADATA/com.android.tools.build.debugsymbols/armeabi-v7a/libapp.so.sym
+           /BUNDLE-METADATA/com.android.tools.build.debugsymbols/arm64-v8a/
+           /BUNDLE-METADATA/com.android.tools.build.debugsymbols/arm64-v8a/libflutter.so.sym
+           /BUNDLE-METADATA/com.android.tools.build.debugsymbols/arm64-v8a/libapp.so.sym
+
+           ~/Library/Android/sdk/cmdline-tools/latest/bin/apkanalyzer: line 173: test: : integer expression expected
+           Picked up JAVA_TOOL_OPTIONS: -Dhttp.proxyHost=127.0.0.1 -Dhttp.proxyPort=18188 -Dhttps.proxyHost=127.0.0.1 -Dhttps.proxyPort=18188 -Dhttp.nonProxyHosts=localhost|127.*|10.0.0.41
+[   +1 ms] ✓ Built build/app/outputs/bundle/release/app-release.aab (46.8MB)
+[   +2 ms] "flutter appbundle" took 18,772ms.
+[   +1 ms] Running 2 shutdown hooks
+[        ] Shutdown hooks complete
+[        ] exiting with code 0
+Starting Verifying patch can be applied to release...
+Done Verifying patch can be applied to release
+
+6 file(s) changed that are neither assets, Dart, nor recognized native code.
+    Changed files:
+        BUNDLE-METADATA/com.android.tools.build.debugsymbols/arm64-v8a/libapp.so.sym
+        BUNDLE-METADATA/com.android.tools.build.debugsymbols/armeabi-v7a/libapp.so.sym
+        BUNDLE-METADATA/com.android.tools.build.debugsymbols/x86_64/libapp.so.sym
+        META-INF/ANDROIDD.RSA
+        META-INF/ANDROIDD.SF
+        META-INF/MANIFEST.MF
+Starting Downloading release artifact 1/3...
+[HTTP] GET http://localhost:18290/download/1bb0d6204bac608cd81282c1c5f7c475?exp=1795745515&sig=688d6eb6b12d240e4449ecfc1c1ce91fac26daa6128897a4f6282d7e670e8b99
+Downloading release artifact 1/3 (2%)...
+Done Downloading release artifact 1/3 (100%)
+Starting Downloading release artifact 2/3...
+[HTTP] GET http://localhost:18290/download/d0cf437599e056342a24fdfa4aa86345?exp=1795745515&sig=b692bc4a8df54f60289d48ed972f1c34240d7a6658caa020bd2c5604412e29a4
+Downloading release artifact 2/3 (2%)...
+Done Downloading release artifact 2/3 (100%)
+Starting Downloading release artifact 3/3...
+[HTTP] GET http://localhost:18290/download/87f6a32d9760cf16793459fa5634be3b?exp=1795745515&sig=2e864844acf3d05f8168979f781e09dd86edd9e038535684efc39de0f2523d15
+Downloading release artifact 3/3 (2%)...
+Done Downloading release artifact 3/3 (100%)
+Starting Creating patch artifacts...
+Creating artifact for /var/folders/kw/82hmq60x5ynb8s67m_vmfjjh0000gn/T/shorebird_aab_libappsD9kIhE/armeabi-v7a/libapp.so
+[Process.run] ~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/artifacts/patch/patch ~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/release_artifacts/1-27ee447fb73004666e622feaf0afcedc53f67e3139c665a0b5cbd6f9e4f1e0d1 /var/folders/kw/82hmq60x5ynb8s67m_vmfjjh0000gn/T/shorebird_aab_libappsD9kIhE/armeabi-v7a/libapp.so /var/folders/kw/82hmq60x5ynb8s67m_vmfjjh0000gn/T/rqoHzR/diff.patch
+Exited with code 0
+
+stdout:
+Completed in 1.37953875s
+
+Creating artifact for /var/folders/kw/82hmq60x5ynb8s67m_vmfjjh0000gn/T/shorebird_aab_libappsD9kIhE/arm64-v8a/libapp.so
+[Process.run] ~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/artifacts/patch/patch ~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/release_artifacts/2-2a38433077ceee80c47203e571622b97e3eadae6f1b9d2701462f6590ab03450 /var/folders/kw/82hmq60x5ynb8s67m_vmfjjh0000gn/T/shorebird_aab_libappsD9kIhE/arm64-v8a/libapp.so /var/folders/kw/82hmq60x5ynb8s67m_vmfjjh0000gn/T/cm6BQM/diff.patch
+Exited with code 0
+
+stdout:
+Completed in 1.129430667s
+
+Creating artifact for /var/folders/kw/82hmq60x5ynb8s67m_vmfjjh0000gn/T/shorebird_aab_libappsD9kIhE/x86_64/libapp.so
+[Process.run] ~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/artifacts/patch/patch ~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache/release_artifacts/3-b4cbda8f58caaa416ae381b8440010c50d07113d21df4366d4db8e61fd2f94ec /var/folders/kw/82hmq60x5ynb8s67m_vmfjjh0000gn/T/shorebird_aab_libappsD9kIhE/x86_64/libapp.so /var/folders/kw/82hmq60x5ynb8s67m_vmfjjh0000gn/T/ExaJBS/diff.patch
+Exited with code 0
+
+stdout:
+Completed in 1.389367792s
+
+Done Creating patch artifacts
+Build trace summary written to ~/Developer/shorebird-wt/devrun/android-83198f59/work/untab/build/shorebird/debug/build-trace-android-summary.json
+
+🚀 Ready to publish a new patch!
+
+📱 App: shapes-android-83198f59 (7b5a01f3-8c40-0e01-ac03-5fd3b107e0ff)
+📦 Release Version: 1.0.0+1
+🕹️  Platform: Android [arm32 (313.42 KB), arm64 (219.60 KB), x86_64 (326.19 KB)]
+🟢 Track: Stable
+
+Starting Creating patch...
+[HTTP] POST http://localhost:18290/api/v1/apps/7b5a01f3-8c40-0e01-ac03-5fd3b107e0ff/patches
+Done Creating patch
+Starting Uploading Android artifacts...
+[HTTP] POST http://localhost:18290/api/v1/apps/7b5a01f3-8c40-0e01-ac03-5fd3b107e0ff/patches/1/artifacts
+[HTTP] POST http://localhost:18290/api/v1/uploads/21c96d6d48adbbd8d092b0aeec5b6c36
+[HTTP] POST http://localhost:18290/api/v1/apps/7b5a01f3-8c40-0e01-ac03-5fd3b107e0ff/patches/1/artifacts
+[HTTP] POST http://localhost:18290/api/v1/uploads/9e86fd13ea0178e08ecea66796825ae0
+[HTTP] POST http://localhost:18290/api/v1/apps/7b5a01f3-8c40-0e01-ac03-5fd3b107e0ff/patches/1/artifacts
+[HTTP] POST http://localhost:18290/api/v1/uploads/22372315cea96b14dee493124f5de7dc
+Done Uploading Android artifacts
+Starting Fetching channels...
+[HTTP] GET http://localhost:18290/api/v1/apps/7b5a01f3-8c40-0e01-ac03-5fd3b107e0ff/channels
+Done Fetching channels
+Starting Creating channel...
+[HTTP] POST http://localhost:18290/api/v1/apps/7b5a01f3-8c40-0e01-ac03-5fd3b107e0ff/channels
+Done Creating channel
+Starting Promoting patch to stable...
+[HTTP] POST http://localhost:18290/api/v1/apps/7b5a01f3-8c40-0e01-ac03-5fd3b107e0ff/patches/promote
+Done Promoting patch to stable
+
+✅ Published Patch 1!
+[HTTP] POST http://localhost:18290/api/v1/apps/7b5a01f3-8c40-0e01-ac03-5fd3b107e0ff/runs
+[Process.run] git symbolic-ref HEAD (in ~/Developer/shorebird-wt/devrun/run-83198f59/cli/bin/cache)
+Exited with code 128
+
+stderr:
+fatal: ref HEAD is not a symbolic ref
+
+Unable to check for updates.
+ProcessException: fatal: ref HEAD is not a symbolic ref
+
+  Command: git symbolic-ref HEAD

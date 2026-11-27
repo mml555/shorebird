@@ -1,0 +1,7 @@
+Runner-2026-11-26-162516.ips (summary; the report itself is not kept)
+{'app_version': '1.0.0', 'build_version': '78', 'os_version': 'iPhone OS 15.8.8 (19H422)', 'timestamp': '2026-11-26 16:25:16.00 -0500'}
+{'codes': '0x0000000000000001, 0x00000000000000a7', 'rawCodes': [1, 167], 'type': 'EXC_BAD_ACCESS', 'signal': 'SIGSEGV', 'subtype': 'KERN_INVALID_ADDRESS at 0x00000000000000a7'}
+{'flags': 0, 'code': 11, 'namespace': 'SIGNAL', 'indicator': 'Segmentation fault: 11', 'byProc': 'exc handler', 'byPid': 75832}
+faulting thread frames (image, offset):
+  App 2198520 kDartSnapshotText
+  Flutter 6469088 None

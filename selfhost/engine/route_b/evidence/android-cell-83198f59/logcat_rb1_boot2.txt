@@ -1,0 +1,49 @@
+11-26 21:11:43.022  5372  5372 I flutter : [INFO:flutter/shell/common/shorebird/shorebird.cc(670)] Checking for active patch
+11-26 21:11:43.022  5372  5372 I flutter : [INFO:flutter/shell/common/shorebird/shorebird.cc(686)] Shorebird updater: patch path: /data/user/0/dev.selfhost.untab.android/files/shorebird_updater/patches/1/dlc.vmcode
+11-26 21:11:43.027  5372  5372 I flutter : updater::updater: [shorebird] Reporting launch start.
+11-26 21:11:43.030  5372  5372 I flutter : updater::updater: [shorebird] Reporting launch paused.
+11-26 21:11:43.033  5372  5372 I flutter : updater::updater: [shorebird] Reporting launch resumed.
+11-26 21:11:43.042  5372  5372 I flutter : updater::updater: [shorebird] Reporting successful launch.
+11-26 21:11:43.043  5372  5372 I flutter : updater::updater: [shorebird] Launch success for patch 1: prior_ambiguous_attempts=0 (recovery event suppressed: no prior ambiguity)
+11-26 21:11:43.043  5372  5528 I flutter : updater::network: [shorebird] Sending patch check request: app_id: 7b5a01f3-8c40-0e01-ac03-5fd3b107e0ff, channel: stable, release_version: 1.0.0+1, host_bundle_id: dev.selfhost.untab.android, platform: android, arch: aarch64, current_patch_number: Some(1)
+11-26 21:11:43.056  5372  5514 I flutter : [IMPORTANT:flutter/shell/platform/android/android_context_vk_impeller.cc(74)] Using the Impeller rendering backend (Vulkan).
+11-26 21:11:43.059  5372  5528 I flutter : updater::updater: [shorebird] Patch check response: PatchCheckResponse { patch_available: false, patch: None, rolled_back_patch_numbers: Some([2]) }
+11-26 21:11:43.059  5372  5528 I flutter : updater::updater: [shorebird] Update thread finished with status: No update
+11-26 21:11:43.066  5372  5372 I flutter : shape:init=I1
+11-26 21:11:43.066  5372  5372 I flutter : shape:home-build=H1 0
+11-26 21:11:43.066  5372  5372 I flutter : shape:future-builder=FB1 null
+11-26 21:11:43.066  5372  5372 I flutter : shape:label=L1
+11-26 21:11:43.066  5372  5372 I flutter : shape:future-builder=FB1 G4
+11-26 21:11:43.366  5372  5372 I flutter : shape:count=1
+11-26 21:11:43.368  5372  5372 I flutter : shape:home-build=H1 1
+11-26 21:11:43.369  5372  5372 I flutter : shape:future-builder=FB1 G4
+11-26 21:11:43.385  5372  5372 I flutter : shape:future-builder=FB1 G4
+11-26 21:11:43.669  5372  5372 I flutter : shape:count=2
+11-26 21:11:43.680  5372  5372 I flutter : shape:home-build=H1 2
+11-26 21:11:43.680  5372  5372 I flutter : shape:future-builder=FB1 G4
+11-26 21:11:43.696  5372  5372 I flutter : shape:future-builder=FB1 G4
+11-26 21:11:43.970  5372  5372 I flutter : shape:count=3
+11-26 21:11:43.971  5372  5372 I flutter : shape:greeting=G4
+11-26 21:11:43.978  5372  5372 I flutter : shape:home-build=H1 3
+11-26 21:11:43.978  5372  5372 I flutter : shape:future-builder=FB1 G4
+11-26 21:11:43.996  5372  5372 I flutter : shape:future-builder=FB1 G4
+11-26 21:11:44.022  5372  5372 I flutter : shape:stream=T0
+11-26 21:11:44.075  5372  5372 I flutter : shape:stream=T1
+11-26 21:11:44.127  5372  5372 I flutter : shape:stream=T2
+11-26 21:11:44.127  5372  5372 I flutter : shape:poly=circle1
+11-26 21:11:44.127  5372  5372 I flutter : shape:poly=square1
+11-26 21:11:44.127  5372  5372 I flutter : shape:mood=M1
+11-26 21:11:44.127  5372  5372 I flutter : shape:const=KT1
+11-26 21:11:44.127  5372  5372 I flutter : shape:level=hi1
+11-26 21:11:44.127  5372  5372 I flutter : shape:result=ok 7
+11-26 21:11:44.127  5372  5372 I flutter : shape:stars=***
+11-26 21:11:44.127  5372  5372 I flutter : shape:static=S1
+11-26 21:11:44.127  5372  5372 I flutter : shape:decorate=[P1:3]
+11-26 21:11:44.127  5372  5372 I flutter : shape:arith=2:false
+11-26 21:11:44.127  5372  5372 I flutter : shape:half=1.5
+11-26 21:11:44.127  5372  5372 I flutter : shape:box=T1
+11-26 21:11:44.127  5372  5372 I flutter : shape:generic=F1
+11-26 21:11:44.129  5372  5372 I flutter : shape:stamp=2026-11-15
+11-26 21:11:44.129  5372  5372 I flutter : shape:tally=K1 3 |||
+11-26 21:11:44.129  5372  5372 I flutter : shape:events=0
+11-26 21:11:44.129  5372  5372 I flutter : shape:done=START-DONE

@@ -1,0 +1,10 @@
+Connection to 127.0.0.1 port 18185 [tcp/opsec-omi] succeeded!
+Connection to 127.0.0.1 port 18188 [tcp/*] succeeded!
+descriptor 200 4141
+bootstrap exit=0
+Flutter • revision b259cf5419ac79d1da59099b2ebbaa9f8f519877
+Engine • revision 83198f598d638fb2b5848f64bb377f504185a3da
+18290
+adb reverse tcp:18290 ok
+UP_DONE
+up exit=0

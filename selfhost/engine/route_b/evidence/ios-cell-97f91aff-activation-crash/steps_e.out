@@ -1,0 +1,114 @@
+Engine • revision 97f91aff85e1db8b724afb51ff0e91466b78764c
+UP_DONE
+patch two exit=0
+3:[WARN] No --track given, so this patch is published to the stable track, which reaches all users. A future release will require --track when it cannot ask. Pass --track=stable to keep publishing to stable, or --track=staging to test the patch before promotin
+117:                                                        This flag cannot be combined with "--analyze-size".
+124:                                                        This flag cannot be combined with "--split-debug-info".
+6247:refuses to start ("Wrong full snapshot version") or, worse, runs and produces
+6251:[route-b] carrying 1 unchanged member(s) that hold a copy of a changed one: package:untab/main.dart#_HomeState._start
+6292:✅ Published Patch 5!
+--- two_download
+16:51:42.207669 [shorebird] Prepared boot of patch 1.
+16:51:42.275284 ROUTEB: hook entered
+16:51:42.275619 ROUTEB: parsed, targets=1, built-for=ff1d533bf079274f7c94a7349761f3f5
+16:51:42.276810 ROUTEB: running=ff1d533bf079274f7c94a7349761f3f5
+16:51:42.278806 ROUTEB: assert-pool-offset supplied=0xd4a8
+16:51:42.281660 ROUTEB: activated loadGreeting in package:untab/main.dart before main
+16:51:42.281748 ROUTEB: applied 1/1 targets, entering main
+16:51:42.415975 [shorebird] Launch success for patch 1: prior_ambiguous_attempts=0 (recovery event suppressed: no prior ambiguity)
+16:51:42.437248 flutter: shape:init=I1
+16:51:42.437392 flutter: shape:future-builder=FB1 null
+16:51:42.477309 [shorebird] Patch check response: PatchCheckResponse { patch_available: true, patch: Some(Patch { number: 5, hash: "0079fffc1d10b9cfbf70cf040340a64aafb3c1f9081bc4a4f7d6d5ffe114d6fd", d
+16:51:42.548262 flutter: shape:future-builder=FB1 G2
+16:51:42.598394 [shorebird] Patch 5 successfully downloaded. It will be launched when the app next restarts.
+16:51:42.633418 flutter: shape:count=1
+16:51:42.647868 flutter: shape:future-builder=FB1 G2
+16:51:42.865192 flutter: shape:future-builder=FB1 G2
+16:51:42.935499 flutter: shape:count=2
+16:51:42.948076 flutter: shape:future-builder=FB1 G2
+--- two_boot
+16:52:26.697067 [shorebird] Prepared boot of patch 5.
+16:52:26.755399 ROUTEB: hook entered
+16:52:26.755418 ROUTEB: parsed, targets=3, built-for=ff1d533bf079274f7c94a7349761f3f5
+16:52:26.755436 ROUTEB: running=ff1d533bf079274f7c94a7349761f3f5
+16:52:26.755453 ROUTEB: assert-pool-offset supplied=0xd4a8
+16:52:26.755495 ROUTEB: activated _HomeState._increment in package:untab/main.dart before main
+16:52:26.755548 ROUTEB: activated _HomeState._start in package:untab/main.dart before main
+16:52:26.755658 ROUTEB: activated loadGreeting in package:untab/main.dart before main
+16:52:26.755675 ROUTEB: applied 3/3 targets, entering main
+16:52:26.849917 [shorebird] Launch success for patch 5: prior_ambiguous_attempts=0 (recovery event suppressed: no prior ambiguity)
+16:52:26.859004 flutter: shape:init=I1
+16:52:26.859117 flutter: shape:future-builder=FB1 null
+16:52:26.923205 [shorebird] Patch check response: PatchCheckResponse { patch_available: false, patch: None, rolled_back_patch_numbers: Some([]) }
+16:52:27.029037 flutter: shape:future-builder=FB1 G2
+16:52:27.099186 flutter: shape:count=10
+16:52:27.100202 flutter: shape:future-builder=FB1 G2
+16:52:27.316330 flutter: shape:future-builder=FB1 G2
+16:52:27.401441 flutter: shape:count=20
+forge rc=0
+release id:  ff1d533bf079274f7c94a7349761f3f5
+  1. package:untab/main.dart :: _HomeState._increment
+  2. package:untab/main.dart :: _HomeState._start
+  3. package:untab/main.dart :: selfhost_forged_partial_patch_no_such_selector   <- bogus, must fail
+  1. create patch  2. create ios/aarch64 artifact (hash, hash_signature) and upload  3. promote to stable
+published patch 6 and promoted it to stable.
+--- partial_download
+16:53:15.167416 [shorebird] Prepared boot of patch 5.
+16:53:15.174676 ROUTEB: hook entered
+16:53:15.174693 ROUTEB: parsed, targets=3, built-for=ff1d533bf079274f7c94a7349761f3f5
+16:53:15.174710 ROUTEB: running=ff1d533bf079274f7c94a7349761f3f5
+16:53:15.174727 ROUTEB: assert-pool-offset supplied=0xd4a8
+16:53:15.174775 ROUTEB: activated _HomeState._increment in package:untab/main.dart before main
+16:53:15.174812 ROUTEB: activated _HomeState._start in package:untab/main.dart before main
+16:53:15.174831 ROUTEB: activated loadGreeting in package:untab/main.dart before main
+16:53:15.174853 ROUTEB: applied 3/3 targets, entering main
+16:53:15.208922 [shorebird] Launch success for patch 5: prior_ambiguous_attempts=0 (recovery event suppressed: no prior ambiguity)
+16:53:15.213081 flutter: shape:init=I1
+16:53:15.213167 flutter: shape:future-builder=FB1 null
+16:53:15.337510 flutter: shape:future-builder=FB1 G2
+16:53:15.357625 [shorebird] Patch check response: PatchCheckResponse { patch_available: true, patch: Some(Patch { number: 6, hash: "914c7501c01f68cd7226dd74b5dc1a64b3b5b9444b9f887390195ce7ad030cff", d
+16:53:15.441923 [shorebird] Patch 6 successfully downloaded. It will be launched when the app next restarts.
+16:53:15.447787 flutter: shape:count=10
+16:53:15.449199 flutter: shape:future-builder=FB1 G2
+16:53:15.652956 flutter: shape:future-builder=FB1 G2
+--- partial_boot
+16:53:58.462189 [shorebird] Prepared boot of patch 6.
+16:53:58.501614 ROUTEB: hook entered
+16:53:58.501663 ROUTEB: parsed, targets=3, built-for=ff1d533bf079274f7c94a7349761f3f5
+16:53:58.501714 ROUTEB: running=ff1d533bf079274f7c94a7349761f3f5
+16:53:58.502965 ROUTEB: assert-pool-offset supplied=0xd4a8
+16:53:58.507154 ROUTEB: activated _HomeState._increment in package:untab/main.dart before main
+16:53:58.507239 ROUTEB: activated _HomeState._start in package:untab/main.dart before main
+16:53:58.509106 ROUTEB: target selfhost_forged_partial_patch_no_such_selector not found in package:untab/main.dart
+16:53:58.509161 ROUTEB: target selfhost_forged_partial_patch_no_such_selector in package:untab/main.dart REFUSED (target-missing)
+16:53:58.509222 ROUTEB: applied 2/3 targets, entering main
+16:53:58.510859 ROUTEB: rolled back 2/2 attached targets, main runs the release code
+16:53:58.656134 flutter: shape:init=I1
+16:53:58.656229 flutter: shape:future-builder=FB1 null
+16:53:58.724851 [shorebird] Patch check response: PatchCheckResponse { patch_available: true, patch: Some(Patch { number: 6, hash: "914c7501c01f68cd7226dd74b5dc1a64b3b5b9444b9f887390195ce7ad030cff", d
+16:53:58.725194 [shorebird] Patch 6 is known bad, skipping.
+16:53:58.789219 flutter: shape:future-builder=FB1 G1
+16:53:58.883428 flutter: shape:count=1
+16:53:58.889704 flutter: shape:future-builder=FB1 G1
+--- partial_boot2
+16:54:38.103597 [shorebird] Prepared boot of patch 5.
+16:54:38.134957 ROUTEB: hook entered
+16:54:38.135015 ROUTEB: parsed, targets=3, built-for=ff1d533bf079274f7c94a7349761f3f5
+16:54:38.135088 ROUTEB: running=ff1d533bf079274f7c94a7349761f3f5
+16:54:38.135162 ROUTEB: assert-pool-offset supplied=0xd4a8
+16:54:38.135222 ROUTEB: activated _HomeState._increment in package:untab/main.dart before main
+16:54:38.135291 ROUTEB: activated _HomeState._start in package:untab/main.dart before main
+16:54:38.136724 ROUTEB: activated loadGreeting in package:untab/main.dart before main
+16:54:38.136788 ROUTEB: applied 3/3 targets, entering main
+16:54:38.224401 [shorebird] Launch success for patch 5: prior_ambiguous_attempts=0 (recovery event suppressed: no prior ambiguity)
+16:54:38.225713 flutter: shape:init=I1
+16:54:38.227379 flutter: shape:future-builder=FB1 null
+16:54:38.274228 [shorebird] Patch check response: PatchCheckResponse { patch_available: true, patch: Some(Patch { number: 6, hash: "914c7501c01f68cd7226dd74b5dc1a64b3b5b9444b9f887390195ce7ad030cff", d
+16:54:38.275513 [shorebird] Patch 6 is known bad, skipping.
+16:54:38.407769 flutter: shape:future-builder=FB1 G2
+16:54:38.482081 flutter: shape:count=10
+16:54:38.490587 flutter: shape:future-builder=FB1 G2
+16:54:38.706574 flutter: shape:future-builder=FB1 G2
+~/Developer/shorebird-wt/devrun/run-97f91aff/logs/retarget/crash/Runner-2026-11-26-162546.ips
+~/Developer/shorebird-wt/devrun/run-97f91aff/logs/retarget/crash/Runner-2026-11-26-162516.ips
+STEPS_E_DONE

@@ -1,0 +1,16 @@
+# docker VM and co-tenants at collection time
+MemTotal=42095955968 NCPU=32
+naughty_robinson 2.082GiB / 54.45GiB 3.82%
+r12-cdn-sealed 30.54MiB / 54.45GiB 0.05%
+r12cold-artifact-proxy-1 3.574MiB / 54.45GiB 0.01%
+r12-discovery-rp 430MiB / 54.45GiB 0.77%
+r12-cps 187.3MiB / 54.45GiB 0.34%
+r12-flutter-git 357.3MiB / 54.45GiB 0.64%
+shorebird-cdn-cdn-cache-1 24.5MiB / 8GiB 0.30%
+shorebird-cdn-artifact-proxy-1 1.734MiB / 54.45GiB 0.00%
+signed-in-chrome-chrome-1 371.6MiB / 6GiB 6.05%
+browser-pool-chrome-1 91.51MiB / 6GiB 1.49%
+browser-pool-edge-1 75.38MiB / 3GiB 2.45%
+browser-pool-firefox-1 62.95MiB / 3GiB 2.05%
+browser-pool-hub-1 220.3MiB / 54.45GiB 0.40%
+browser-pool-playwright-1 37.09MiB / 6GiB 0.60%

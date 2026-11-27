@@ -1,0 +1,57 @@
+11-26 21:09:16.515  2729  2729 I flutter : [INFO:flutter/shell/common/shorebird/shorebird.cc(670)] Checking for active patch
+11-26 21:09:16.516  2729  2729 I flutter : [INFO:flutter/shell/common/shorebird/shorebird.cc(686)] Shorebird updater: patch path: /data/user/0/dev.selfhost.untab.android/files/shorebird_updater/patches/1/dlc.vmcode
+11-26 21:09:16.521  2729  2729 I flutter : updater::updater: [shorebird] Reporting launch start.
+11-26 21:09:16.524  2729  2729 I flutter : updater::updater: [shorebird] Reporting launch paused.
+11-26 21:09:16.527  2729  2729 I flutter : updater::updater: [shorebird] Reporting launch resumed.
+11-26 21:09:16.533  2729  2729 I flutter : updater::updater: [shorebird] Reporting successful launch.
+11-26 21:09:16.534  2729  2729 I flutter : updater::updater: [shorebird] Launch success for patch 1: prior_ambiguous_attempts=0 (recovery event suppressed: no prior ambiguity)
+11-26 21:09:16.534  2729  2789 I flutter : updater::network: [shorebird] Sending patch check request: app_id: 7b5a01f3-8c40-0e01-ac03-5fd3b107e0ff, channel: stable, release_version: 1.0.0+1, host_bundle_id: dev.selfhost.untab.android, platform: android, arch: aarch64, current_patch_number: Some(1)
+11-26 21:09:16.542  2729  2789 I flutter : updater::updater: [shorebird] Patch check response: PatchCheckResponse { patch_available: true, patch: Some(Patch { number: 2, hash: "adc2a9455db56b53999e9c01e3f9af14ba61e3c9c9fddca5b1fbf224ede10863", download_url: "http://localhost:18290/download/937283e59c5640f7c3891b2ee8f19f3f?exp=1795745656&sig=9821d12c17b95640d9d8fc111514e1b7affe78daae4b27b06cf45a63f699edfc", hash_signature: Some("p5TcW61oFmpe4cE2oyBD3aklpXTD7OSLzkEHmn9preiUJw3nnOE0GMlboKyNlJ4h/aZjFp8F7E+GqNZ3AAX9qMGFoblZE7abAYbWAO0UfpyyEBrPf2EiVHiRHAhLI9o7IWlI0ybFqYpqpZ6EQh2HzcntqZQ4Vn9EbkAyyydAWtiNc9iw9N0Y5Z0QTdbPWQemfhxlH2A/kriFELi/DF76v6fd6W7eoCGo9f1AHL2ieWQufr12T01mv9vDZFHp5wqenKKS3j5YqSCIijuceIAgImHuTspCwk0jJ6+0kdySa8hMemHQaSpy+uul1eFxiJdnJkdZuqOmyiv5mZ5YDXmJ7Q=="), kind: Code }), rolled_back_patch_numbers: Some([]) }
+11-26 21:09:16.543  2729  2789 I flutter : updater::cache::signing: [shorebird] Verifying patch signature...
+11-26 21:09:16.543  2729  2789 I flutter : updater::cache::signing: [shorebird] Patch signature is valid
+11-26 21:09:16.543  2729  2789 I flutter : updater::updater: [shorebird] Downloading patch 2 for app 7b5a01f3-8c40-0e01-ac03-5fd3b107e0ff (version 1.0.0+1)
+11-26 21:09:16.545  2729  2779 I flutter : [IMPORTANT:flutter/shell/platform/android/android_context_vk_impeller.cc(74)] Using the Impeller rendering backend (Vulkan).
+11-26 21:09:16.546  2729  2789 I flutter : updater::network: [shorebird] Downloading patch from: http://localhost:18290/download/937283e59c5640f7c3891b2ee8f19f3f?exp=1795745656&sig=9821d12c17b95640d9d8fc111514e1b7affe78daae4b27b06cf45a63f699edfc
+11-26 21:09:16.555  2729  2789 I flutter : updater::network: [shorebird] Downloaded patch to: "/data/user/0/dev.selfhost.untab.android/code_cache/shorebird_updater/downloads/2" (114396 bytes)
+11-26 21:09:16.556  2729  2789 I flutter : updater::updater: [shorebird] Inflating patch from "/data/user/0/dev.selfhost.untab.android/code_cache/shorebird_updater/downloads/2" (114396 bytes)
+11-26 21:09:16.558  2729  2729 I flutter : shape:init=I1
+11-26 21:09:16.558  2729  2729 I flutter : shape:home-build=H1 0
+11-26 21:09:16.558  2729  2729 I flutter : shape:future-builder=FB1 null
+11-26 21:09:16.558  2729  2729 I flutter : shape:label=L1
+11-26 21:09:16.558  2729  2729 I flutter : shape:future-builder=FB1 G4
+11-26 21:09:16.571  2729  2789 I flutter : updater::updater: [shorebird] Patch successfully applied to "/data/user/0/dev.selfhost.untab.android/files/shorebird_updater/patches/2/dlc.vmcode". patch_file=114396b base_size=3015640b decompressed=3019370b base_read=2946169b base_last_seek_pos=3015640 base_seeks=924 output_written=3015640b
+11-26 21:09:16.577  2729  2789 I flutter : updater::updater: [shorebird] Patch 2 successfully downloaded. It will be launched when the app next restarts.
+11-26 21:09:16.577  2729  2789 I flutter : updater::updater: [shorebird] Update thread finished with status: Update installed
+11-26 21:09:16.860  2729  2729 I flutter : shape:count=1
+11-26 21:09:16.868  2729  2729 I flutter : shape:home-build=H1 1
+11-26 21:09:16.869  2729  2729 I flutter : shape:future-builder=FB1 G4
+11-26 21:09:16.886  2729  2729 I flutter : shape:future-builder=FB1 G4
+11-26 21:09:17.162  2729  2729 I flutter : shape:count=2
+11-26 21:09:17.170  2729  2729 I flutter : shape:home-build=H1 2
+11-26 21:09:17.171  2729  2729 I flutter : shape:future-builder=FB1 G4
+11-26 21:09:17.188  2729  2729 I flutter : shape:future-builder=FB1 G4
+11-26 21:09:17.464  2729  2729 I flutter : shape:count=3
+11-26 21:09:17.464  2729  2729 I flutter : shape:greeting=G4
+11-26 21:09:17.470  2729  2729 I flutter : shape:home-build=H1 3
+11-26 21:09:17.470  2729  2729 I flutter : shape:future-builder=FB1 G4
+11-26 21:09:17.488  2729  2729 I flutter : shape:future-builder=FB1 G4
+11-26 21:09:17.515  2729  2729 I flutter : shape:stream=T0
+11-26 21:09:17.568  2729  2729 I flutter : shape:stream=T1
+11-26 21:09:17.620  2729  2729 I flutter : shape:stream=T2
+11-26 21:09:17.620  2729  2729 I flutter : shape:poly=circle1
+11-26 21:09:17.621  2729  2729 I flutter : shape:poly=square1
+11-26 21:09:17.621  2729  2729 I flutter : shape:mood=M1
+11-26 21:09:17.621  2729  2729 I flutter : shape:const=KT1
+11-26 21:09:17.621  2729  2729 I flutter : shape:level=hi1
+11-26 21:09:17.621  2729  2729 I flutter : shape:result=ok 7
+11-26 21:09:17.621  2729  2729 I flutter : shape:stars=***
+11-26 21:09:17.621  2729  2729 I flutter : shape:static=S1
+11-26 21:09:17.621  2729  2729 I flutter : shape:decorate=[P1:3]
+11-26 21:09:17.621  2729  2729 I flutter : shape:arith=2:false
+11-26 21:09:17.621  2729  2729 I flutter : shape:half=1.5
+11-26 21:09:17.621  2729  2729 I flutter : shape:box=T1
+11-26 21:09:17.621  2729  2729 I flutter : shape:generic=F1
+11-26 21:09:17.621  2729  2729 I flutter : shape:stamp=2026-11-15
+11-26 21:09:17.621  2729  2729 I flutter : shape:tally=K1 3 |||
+11-26 21:09:17.621  2729  2729 I flutter : shape:events=0
+11-26 21:09:17.621  2729  2729 I flutter : shape:done=START-DONE
