@@ -1,0 +1,1 @@
+check_rp_arms: ok (arms 1 and 2 and both self-tests pass; arm 3 is the expected single-release exit 0)

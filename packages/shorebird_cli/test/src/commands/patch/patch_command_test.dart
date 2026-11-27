@@ -4065,7 +4065,7 @@ A patch cannot change the Flutter version a release was built with. To fix this,
         await expectLater(
           () => runWithOverrides(command.run),
           exitsWithError(
-            message: contains('83198f59'),
+            message: contains(WithdrawnEngineException.supportedCell),
             exitCode: ExitCode.config,
           ),
         );

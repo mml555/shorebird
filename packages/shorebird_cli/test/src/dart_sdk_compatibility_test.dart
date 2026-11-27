@@ -93,7 +93,7 @@ void main() {
                         'message',
                         allOf(
                           contains(revision),
-                          contains('83198f59'),
+                          contains('c9208259'),
                           contains('selfhost-v'),
                         ),
                       ),
@@ -107,6 +107,9 @@ void main() {
           '83198f598d638fb2b5848f64bb377f504185a3da',
           '83198f59',
           '88a7bf8c',
+          'c920825972cdc7e096fa114bbb616b306914c4c7',
+          'c9208259',
+          '93adf4fb',
           '1234567890abcdef1234567890abcdef12345678',
         ]) {
           test('does not refuse $revision', () {

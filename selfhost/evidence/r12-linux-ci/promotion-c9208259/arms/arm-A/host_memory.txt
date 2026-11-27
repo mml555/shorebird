@@ -1,0 +1,16 @@
+# docker VM and co-tenants at collection time
+MemTotal=42510102528 NCPU=32
+exciting_mahavira 2.11GiB / 54.45GiB 3.88%
+r12-cdn-sealed 22.57MiB / 54.45GiB 0.04%
+r12cold-artifact-proxy-1 4.652MiB / 54.45GiB 0.01%
+r12-discovery-rp 396MiB / 54.45GiB 0.71%
+r12-cps 154.1MiB / 54.45GiB 0.28%
+r12-flutter-git 346.5MiB / 54.45GiB 0.62%
+shorebird-cdn-cdn-cache-1 26.75MiB / 8GiB 0.33%
+shorebird-cdn-artifact-proxy-1 2.465MiB / 54.45GiB 0.00%
+signed-in-chrome-chrome-1 117.1MiB / 6GiB 1.91%
+browser-pool-chrome-1 101.9MiB / 6GiB 1.66%
+browser-pool-edge-1 87.24MiB / 3GiB 2.84%
+browser-pool-firefox-1 80.26MiB / 3GiB 2.61%
+browser-pool-hub-1 318.9MiB / 54.45GiB 0.57%
+browser-pool-playwright-1 253MiB / 6GiB 4.12%

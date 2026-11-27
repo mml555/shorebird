@@ -1,0 +1,15 @@
+[Process.run] git for-each-ref --contains 246fd6f6fc70f2c4a7fb9b563eda5fcdccba2104 --format %(refname:short) refs/remotes/origin/flutter_release/* (in ~/Developer/shorebird-wt/devrun/run-c9208259/cli/bin/cache/flutter/246fd6f6fc70f2c4a7fb9b563eda5fcdccba2104)
+Exited with code 0
+Shorebird 1.6.144+selfhost.1 • git@github.com:shorebirdtech/shorebird.git
+Flutter • revision 246fd6f6fc70f2c4a7fb9b563eda5fcdccba2104
+Engine • revision c920825972cdc7e096fa114bbb616b306914c4c7
+[Process.run] git symbolic-ref HEAD (in ~/Developer/shorebird-wt/devrun/run-c9208259/cli/bin/cache)
+Exited with code 128
+
+stderr:
+fatal: ref HEAD is not a symbolic ref
+
+Unable to check for updates.
+ProcessException: fatal: ref HEAD is not a symbolic ref
+
+  Command: git symbolic-ref HEAD

@@ -1,0 +1,51 @@
+11-27 13:03:18.925  8683  8683 I flutter : updater::cache::updater_state: [shorebird] No usable state file (File /data/user/0/dev.selfhost.untab.android/files/shorebird_updater/state.json does not exist), creating new state.
+11-27 13:03:18.929  8683  8683 I flutter : [INFO:flutter/shell/common/shorebird/shorebird.cc(685)] Checking for active patch
+11-27 13:03:18.929  8683  8683 I flutter : [INFO:flutter/shell/common/shorebird/shorebird.cc(703)] Shorebird updater: no active patch.
+11-27 13:03:18.934  8683  8683 I flutter : updater::updater: [shorebird] Reporting launch start.
+11-27 13:03:18.957  8683  8719 I flutter : [IMPORTANT:flutter/shell/platform/android/android_context_vk_impeller.cc(74)] Using the Impeller rendering backend (Vulkan).
+11-27 13:03:18.971  8683  8683 I flutter : updater::updater: [shorebird] Reporting successful launch.
+11-27 13:03:18.972  8683  8752 I flutter : updater::network: [shorebird] Sending patch check request: app_id: 04e3cc80-852c-5f26-ed7f-ed04642de1c3, channel: stable, release_version: 1.0.0+1, host_bundle_id: dev.selfhost.untab.android, platform: android, arch: aarch64, current_patch_number: None
+11-27 13:03:18.985  8683  8752 I flutter : updater::updater: [shorebird] Patch check response: PatchCheckResponse { patch_available: false, patch: None, rolled_back_patch_numbers: Some([]) }
+11-27 13:03:18.985  8683  8752 I flutter : updater::updater: [shorebird] Update thread finished with status: No update
+11-27 13:03:19.002  8683  8683 I flutter : shape:init=I1
+11-27 13:03:19.002  8683  8683 I flutter : shape:home-build=H1 0
+11-27 13:03:19.002  8683  8683 I flutter : shape:future-builder=FB1 null
+11-27 13:03:19.003  8683  8683 I flutter : shape:label=L1
+11-27 13:03:19.208  8683  8683 I flutter : shape:future-builder=FB1 G1
+11-27 13:03:19.303  8683  8683 I flutter : shape:count=1
+11-27 13:03:19.308  8683  8683 I flutter : shape:home-build=H1 1
+11-27 13:03:19.308  8683  8683 I flutter : shape:future-builder=FB1 G1
+11-27 13:03:19.526  8683  8683 I flutter : shape:future-builder=FB1 G1
+11-27 13:03:19.605  8683  8683 I flutter : shape:count=2
+11-27 13:03:19.609  8683  8683 I flutter : shape:home-build=H1 2
+11-27 13:03:19.610  8683  8683 I flutter : shape:future-builder=FB1 G1
+11-27 13:03:19.826  8683  8683 I flutter : shape:future-builder=FB1 G1
+11-27 13:03:19.907  8683  8683 I flutter : shape:count=3
+11-27 13:03:19.909  8683  8683 I flutter : shape:home-build=H1 3
+11-27 13:03:19.909  8683  8683 I flutter : shape:future-builder=FB1 G1
+11-27 13:03:20.110  8683  8683 I flutter : shape:greeting=G1
+11-27 13:03:20.125  8683  8683 I flutter : shape:home-build=H1 3
+11-27 13:03:20.125  8683  8683 I flutter : shape:future-builder=FB1 G1
+11-27 13:03:20.161  8683  8683 I flutter : shape:stream=T0
+11-27 13:03:20.214  8683  8683 I flutter : shape:stream=T1
+11-27 13:03:20.265  8683  8683 I flutter : shape:stream=T2
+11-27 13:03:20.265  8683  8683 I flutter : shape:poly=circle1
+11-27 13:03:20.265  8683  8683 I flutter : shape:poly=square1
+11-27 13:03:20.265  8683  8683 I flutter : shape:mood=M1
+11-27 13:03:20.265  8683  8683 I flutter : shape:const=KT1
+11-27 13:03:20.265  8683  8683 I flutter : shape:level=hi1
+11-27 13:03:20.265  8683  8683 I flutter : shape:result=ok 7
+11-27 13:03:20.266  8683  8683 I flutter : shape:stars=***
+11-27 13:03:20.266  8683  8683 I flutter : shape:static=S1
+11-27 13:03:20.266  8683  8683 I flutter : shape:decorate=[P1:3]
+11-27 13:03:20.266  8683  8683 I flutter : shape:arith=2:false
+11-27 13:03:20.266  8683  8683 I flutter : shape:half=1.5
+11-27 13:03:20.266  8683  8683 I flutter : shape:box=T1
+11-27 13:03:20.266  8683  8683 I flutter : shape:generic=F1
+11-27 13:03:20.266  8683  8683 I flutter : shape:stamp=2026-11-15
+11-27 13:03:20.266  8683  8683 I flutter : shape:tally=K1 3 |||
+11-27 13:03:20.266  8683  8683 I flutter : shape:events=0
+11-27 13:03:20.266  8683  8683 I flutter : shape:done=START-DONE
+11-27 13:03:20.340  8683  8683 I flutter : shape:future-builder=FB1 G1
+11-27 13:03:20.340  8683  8683 I flutter : shape:route=R1 /detail
+11-27 13:03:20.357  8683  8683 I flutter : shape:detail=D1

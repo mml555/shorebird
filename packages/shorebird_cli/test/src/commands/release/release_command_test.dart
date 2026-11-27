@@ -497,7 +497,7 @@ void main() {
         await expectLater(
           () => runWithOverrides(command.run),
           exitsWithError(
-            message: contains('83198f59'),
+            message: contains(WithdrawnEngineException.supportedCell),
             exitCode: ExitCode.config,
           ),
         );
